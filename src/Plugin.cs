@@ -1,9 +1,9 @@
 ﻿using BepInEx;
 using BepInEx.Logging;
 
-namespace RainWorldPlugin
+namespace LavaCat
 {
-    [BepInPlugin("org.author.rainworldplugin", nameof(RainWorldPlugin), "0.1.0")]
+    [BepInPlugin("org.ozqlis.lavacat", nameof(LavaCat), "0.1.0")]
     public sealed class Plugin : BaseUnityPlugin
     {
         public static new ManualLogSource Logger { get; private set; }
