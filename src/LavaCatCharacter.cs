@@ -43,13 +43,4 @@ sealed class LavaCatCharacter : SlugBaseCharacter
         maxFood = 8;
         foodToSleep = 7;
     }
-
-    public override void GetStats(SlugcatStats stats)
-    {
-        stats.lungsFac = 0.01f;
-        stats.bodyWeightFac = 1.5f;
-        stats.loudnessFac = 1.5f;
-
-        // The remaining stats depend on your temperature.
-    }
 }

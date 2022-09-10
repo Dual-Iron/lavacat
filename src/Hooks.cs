@@ -1,7 +1,10 @@
-﻿using SlugBase;
+﻿using RWCustom;
+using SlugBase;
+using Smoke;
 using UnityEngine;
 using WeakTables;
 using static LavaCat.Extensions;
+using static UnityEngine.Mathf;
 
 namespace LavaCat;
 
@@ -9,19 +12,120 @@ sealed class PlayerData
 {
     public float temperature = 1; // 0 min, 1 max
     public float temperatureLast = 1; // 0 min, 1 max
+
+    public WeakRef<LavaSteam> steam = new();
 }
 
 sealed class PlayerGraphicsData
 {
-    public WeakRef<CatLight[]> lights = new();
+    public CatLight[] lights = new CatLight[3];
 }
 
 struct CatLight
 {
-    public LightSource source;
+    public WeakRef<LightSource> source;
     public Vector2 offset;
     public Vector2 targetOffset;
     public float targetRad;
+}
+
+sealed class LavaSteam : SmokeSystem
+{
+    public LavaSteam(Room room) : base(SmokeType.Steam, room, 2, 0f)
+    {
+    }
+
+    public override SmokeSystemParticle CreateParticle()
+    {
+        return new LavaSteamParticle();
+    }
+
+    public void EmitSmoke(Vector2 pos, Vector2 vel, float intensity)
+    {
+        if (AddParticle(pos, vel, Lerp(60f, 180f, Random.value * intensity)) is LavaSteamParticle particle) {
+            particle.intensity = intensity;
+            particle.rad = Lerp(108f, 286f, Random.value) * Lerp(0.5f, 1f, intensity);
+        }
+    }
+
+    sealed class LavaSteamParticle : SpriteSmoke
+    {
+        private float upForce;
+        public float moveDir;
+        public float intensity;
+
+        public override float ToMidSpeed => 0.4f;
+
+        public override void Reset(SmokeSystem newOwner, Vector2 pos, Vector2 vel, float lifeTime)
+        {
+            base.Reset(newOwner, pos, vel, lifeTime);
+            upForce = Random.value * 100f / lifeTime;
+            moveDir = Random.value * 360f;
+        }
+
+        public override void Update(bool eu)
+        {
+            base.Update(eu);
+
+            if (!resting) {
+                moveDir += Lerp(-1f, 1f, Random.value) * 50f;
+                vel *= 0.8f;
+                vel += Custom.DegToVec(moveDir) * 1.8f * intensity * life;
+                vel.y += 2.8f * intensity * upForce;
+                if (room.PointSubmerged(pos)) {
+                    vel.y += 1.4f * intensity * upForce;
+                }
+            }
+        }
+
+        public override float Rad(int type, float useLife, float useStretched, float timeStacker)
+        {
+            float val = Pow(Lerp(Sin(useLife * 3.1415927f), 1f - useLife, 0.7f), 0.8f);
+            if (type == 0) {
+                return Lerp(4f, rad, val + useStretched);
+            }
+            if (type != 1) {
+                return Lerp(4f, rad, val);
+            }
+            return 1.5f * Lerp(2f, rad, val);
+        }
+
+        public override void InitiateSprites(RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam)
+        {
+            base.InitiateSprites(sLeaser, rCam);
+
+            for (int i = 0; i < 2; i++) {
+                sLeaser.sprites[i].shader = room.game.rainWorld.Shaders["Steam"];
+            }
+        }
+
+        public override void DrawSprites(RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
+        {
+            base.DrawSprites(sLeaser, rCam, timeStacker, camPos);
+
+            if (!resting) {
+                for (int i = 0; i < 2; i++) {
+                    sLeaser.sprites[i].alpha = life;
+                }
+            }
+        }
+
+        public override void ApplyPalette(RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, RoomPalette palette)
+        {
+            base.ApplyPalette(sLeaser, rCam, palette);
+
+            for (int i = 0; i < 2; i++) {
+                sLeaser.sprites[i].color = Color.Lerp(palette.fogColor, new Color(1f, 1f, 1f), Lerp(0.03f, 0.35f, palette.texture.GetPixel(30, 7).r));
+            }
+        }
+
+        public override void AddToContainer(RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, FContainer newContainer)
+        {
+            newContainer = rCam.ReturnFContainer("Water");
+
+            base.AddToContainer(sLeaser, rCam, newContainer);
+        }
+    }
 }
 
 static class Hooks
@@ -32,6 +136,7 @@ static class Hooks
     public static void Apply()
     {
         // Fix underwater movement
+        On.Creature.Grab += Creature_Grab;
         On.Player.MovementUpdate += Player_MovementUpdate;
         On.Room.FloatWaterLevel += Room_FloatWaterLevel;
 
@@ -40,6 +145,17 @@ static class Hooks
         On.PlayerGraphics.ApplyPalette += PlayerGraphics_ApplyPalette;
         On.PlayerGraphics.DrawSprites += PlayerGraphics_DrawSprites;
         On.PlayerGraphics.Update += PlayerGraphics_Update;
+    }
+
+    private static bool Creature_Grab(On.Creature.orig_Grab orig, Creature self, PhysicalObject obj, int graspUsed, int chunkGrabbed, Creature.Grasp.Shareability shareability, float dominance, bool overrideEquallyDominant, bool pacifying)
+    {
+        // Prevent leeches from softlocking the game
+        if (self is Leech leech && obj is Player player && player.IsLavaCat()) {
+            leech.HeardSnailClick(player.firstChunk.pos);
+            leech.firstChunk.vel *= -1.5f;
+            return false;
+        }
+        return orig(self, obj, graspUsed, chunkGrabbed, shareability, dominance, overrideEquallyDominant, pacifying);
     }
 
     private static bool movementUpdate = false;
@@ -52,8 +168,7 @@ static class Hooks
     private static float Room_FloatWaterLevel(On.Room.orig_FloatWaterLevel orig, Room self, float horizontalPos)
     {
         // Ignore water level when performing movement update.
-        if (movementUpdate) return 0;
-        return orig(self, horizontalPos);
+        return movementUpdate ? 0 : orig(self, horizontalPos);
     }
 
     private static void Player_Update(On.Player.orig_Update orig, Player self, bool eu)
@@ -61,10 +176,12 @@ static class Hooks
         orig(self, eu);
 
         if (self.IsLavaCat()) {
-            self.TempLast() = self.Temp();
+            float temp = self.Temp();
 
-            self.waterFriction = 0.8f;
-            self.buoyancy = 0.8f * self.Temp();
+            self.TempLast() = temp;
+
+            self.waterFriction = Lerp(0.95f, 0.8f, self.Temp());
+            self.buoyancy = Lerp(0.4f, 1.1f, self.Temp());
 
             WaterCollision(self, self.bodyChunks[0]);
             WaterCollision(self, self.bodyChunks[1]);
@@ -72,18 +189,44 @@ static class Hooks
             // This cat doesn't breathe.
             self.airInLungs = 1f;
             self.aerobicLevel = 0f;
+
+            UpdateStats(self, temp);
         }
+    }
+
+    private static void UpdateStats(Player player, float temperature)
+    {
+        var stats = player.slugcatStats;
+
+        stats.loudnessFac = 1.5f;
+        stats.lungsFac = 0.01f;
+
+        stats.bodyWeightFac = Lerp(1.35f, 1.4f, temperature);
+        stats.generalVisibilityBonus = Lerp(0f, 0.2f, temperature);
+        stats.corridorClimbSpeedFac = Lerp(0.9f, 1.2f, temperature);
+        stats.poleClimbSpeedFac = Lerp(0.9f, 1.2f, temperature);
+        stats.runspeedFac = Lerp(0.95f, 1.25f, temperature);
     }
 
     private static void WaterCollision(Player player, BodyChunk chunk)
     {
         if (chunk.submersion > 0 && player.Temp() > 0) {
+            // Create steam object if there's none currently
+            if (!plrData[player].steam.TryGetTarget(out var steam)) {
+                plrData[player].steam = new(steam = new LavaSteam(player.room));
+
+                player.room.AddObject(steam);
+            }
+
+            Vector2 vel = new Vector2(0, 5) + Random.insideUnitCircle * 5;
+            steam.EmitSmoke(chunk.pos, vel, chunk.submersion * 0.5f);
+
             float ticksToFreeze = chunk.index == 0 ? 40 : 180;
 
             player.Temp() -= chunk.submersion / ticksToFreeze;
-            player.Temp() = Mathf.Clamp01(player.Temp());
+            player.Temp() = Clamp01(player.Temp());
 
-            player.room.PlaySound(SoundID.Gate_Electric_Steam_Puff, chunk);
+            player.room.PlaySound(SoundID.Gate_Water_Steam_Puff, chunk, false, 0.5f, 1.1f);
         }
     }
 
@@ -135,7 +278,7 @@ static class Hooks
 
         static void EmitFire(PlayerGraphics self)
         {
-            float chance = 0.50f * self.player.Temp();
+            float chance = 0.50f * self.player.Temp() * self.player.Temp();
 
             // Emit fire at top of head
             if (RngChance(chance * 0.5f)) {
@@ -152,54 +295,65 @@ static class Hooks
 
         static void UpdateLights(PlayerGraphics self)
         {
-            var data = graphicsData[self];
+            CatLight[] lights = graphicsData[self].lights;
+
+            if (self.player.Temp() <= 0) {
+                if (self.player.glowing) {
+
+                    self.player.glowing = false;
+                    self.lightSource?.Destroy();
+
+                    for (int i = 0; i < lights.Length; i++) {
+                        if (lights[i].source.TryGetTarget(out var light)) {
+                            lights[i].source = new();
+                            light.Destroy();
+                        }
+                    }
+                }
+                return;
+            }
 
             self.player.glowing = true;
 
             // Dampen glow light source
             if (self.lightSource != null) {
-                self.lightSource.color = PlayerManager.GetSlugcatColor(self.player);
+                self.lightSource.color = PlayerManager.GetSlugcatColor(self.player) with { a = self.player.Temp() };
                 self.lightSource.rad = 150 * self.player.Temp();
             }
 
-            // If the lights are loaded, update them
-            if (data.lights.TryGetTarget(out var lights)) {
-                for (int i = 0; i < lights.Length; i++) {
-                    if (RngChance(0.2f)) {
-                        lights[i].targetOffset = Random.insideUnitCircle * 25f;
-                    }
-                    if (RngChance(0.2f)) {
-                        float minRad = 50f;
-                        float maxRad = Mathf.Lerp(250f, 100f, i / (lights.Length - 1f));
-                        lights[i].targetRad = Mathf.Lerp(minRad, maxRad, Mathf.Sqrt(Random.value)) * self.player.Temp();
-                    }
-                    lights[i].offset = Vector2.Lerp(lights[i].offset, lights[i].targetOffset, 0.2f);
-                    lights[i].source.setRad = Mathf.Lerp(lights[i].source.rad, lights[i].targetRad, 0.2f);
-                    lights[i].source.setPos = self.player.firstChunk.pos + lights[i].offset;
+            for (int i = 0; i < lights.Length; i++) {
+                lights[i].source ??= new();
+                lights[i].source.TryGetTarget(out var source);
+
+                if (source != null && (source.slatedForDeletetion || source.room != self.player.room)) {
+                    source.setAlpha = 0;
+                    source.Destroy();
+                    source = null;
                 }
 
-                // Delete lights if they're done updating
-                if (lights[0].source.slatedForDeletetion) {
-                    data.lights = new();
-                }
-            }
-            // If not, create new ones
-            else {
-                Vector2 pos = self.player.firstChunk.pos;
-                CatLight[] newLights = new CatLight[3];
-
-                for (int i = 0; i < newLights.Length; i++) {
-                    float hue = Mathf.Lerp(0.01f, 0.07f, i / (newLights.Length - 1));
+                if (source == null) {
+                    float hue = Lerp(0.01f, 0.07f, i / 2f);
                     Color color = new HSLColor(hue, 1f, 0.5f).rgb;
-
-                    newLights[i].source = new LightSource(pos, false, color, self.player) {
+                    source = new LightSource(self.player.firstChunk.pos, false, color, self.player) {
                         setAlpha = 1,
                     };
 
-                    self.player.room.AddObject(newLights[i].source);
+                    lights[i].source = new(source);
+                    self.player.room.AddObject(source);
                 }
 
-                data.lights = new(newLights);
+                if (RngChance(0.2f)) {
+                    lights[i].targetOffset = Random.insideUnitCircle * 25f;
+                }
+                if (RngChance(0.2f)) {
+                    float minRad = 50f;
+                    float maxRad = Lerp(250f, 100f, i / (lights.Length - 1f));
+                    lights[i].targetRad = Lerp(minRad, maxRad, Sqrt(Random.value)) * self.player.Temp();
+                }
+                lights[i].offset = Vector2.Lerp(lights[i].offset, lights[i].targetOffset, 0.2f);
+                source.setRad = Lerp(source.rad, lights[i].targetRad, 0.2f);
+                source.setPos = self.player.firstChunk.pos + lights[i].offset;
+                source.alpha = self.player.Temp();
             }
         }
     }
