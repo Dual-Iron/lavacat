@@ -3,10 +3,14 @@
   <PropertyGroup>
     <TargetFramework>net35</TargetFramework>
     <LangVersion>latest</LangVersion>
-    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="../assets/SelectMenu/*">
+      <LogicalName>Scenes.SelectMenu.%(Filename)%(Extension)</LogicalName>
+      <Visible>false</Visible>
+    </EmbeddedResource>
+    
     <Reference Include="../lib/*.refstub.dll" />
     <Compile Include="../lib/**/*.cs" />
   </ItemGroup>

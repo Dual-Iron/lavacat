@@ -8,8 +8,8 @@ static class Extensions
     // -- Lava cat --
     public static bool IsLavaCat(this Player player) => Plugin.Character.IsMe(player);
 
-    public static Color SkinColor(this Player player) => player.GetMagmaColor(player.Temp());
-    public static Color GetMagmaColor(this Player player, float temp)
+    public static Color SkinColor(this Player player) => player.SkinColor(player.Temp());
+    public static Color SkinColor(this Player player, float temp)
     {
         return Color.Lerp(PlayerManager.GetSlugcatColor(player), Color.gray, 1 - temp);
     }
@@ -27,5 +27,10 @@ static class Extensions
     public static Vector2 RandomPositionInChunk(this BodyChunk chunk, float distanceMultiplier = 1f)
     {
         return chunk.pos + Random.insideUnitCircle * chunk.rad * distanceMultiplier;
+    }
+
+    public static bool MagnitudeLessThan(this Vector2 vec, float operand)
+    {
+        return vec.sqrMagnitude < operand * operand;
     }
 }

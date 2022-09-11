@@ -1,4 +1,5 @@
 ﻿using SlugBase;
+using System.IO;
 using UnityEngine;
 
 namespace LavaCat;
@@ -42,5 +43,12 @@ sealed class LavaCatCharacter : SlugBaseCharacter
     {
         maxFood = 8;
         foodToSleep = 7;
+    }
+
+    public override Stream GetResource(params string[] path)
+    {
+        string pathFull = string.Join(".", path);
+
+        return typeof(LavaCatCharacter).Assembly.GetManifestResourceStream(pathFull);
     }
 }

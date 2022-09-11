@@ -1,6 +1,8 @@
 ﻿using RWCustom;
 using SlugBase;
 using Smoke;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using WeakTables;
 using static LavaCat.Extensions;
@@ -12,6 +14,7 @@ sealed class PlayerData
 {
     public float temperature = 1; // 0 min, 1 max
     public float temperatureLast = 1; // 0 min, 1 max
+    public int steamSound = 0;
 
     public WeakRef<LavaSteam> steam = new();
 }
@@ -133,6 +136,24 @@ static class Hooks
     public static readonly WeakTable<Player, PlayerData> plrData = new(_ => new PlayerData());
     public static readonly WeakTable<PlayerGraphics, PlayerGraphicsData> graphicsData = new(_ => new PlayerGraphicsData());
 
+    private static void Cool(Player player, float temperature, float smokeIntensity, Vector2 smokePos, Vector2 smokeVel)
+    {
+        if (player.Temp() > 0 && temperature > 0) {
+            player.Temp() = Clamp01(player.Temp() - temperature);
+
+            // Create steam object if there's none currently
+            if (!plrData[player].steam.TryGetTarget(out var steam)) {
+                plrData[player].steam = new(steam = new LavaSteam(player.room));
+
+                player.room.AddObject(steam);
+            }
+
+            steam.EmitSmoke(smokePos, smokeVel, smokeIntensity);
+
+            plrData[player].steamSound = 7;
+        }
+    }
+
     public static void Apply()
     {
         // Fix underwater movement
@@ -142,6 +163,7 @@ static class Hooks
 
         On.Player.Update += Player_Update;
 
+        On.Player.ShortCutColor += Player_ShortCutColor;
         On.PlayerGraphics.ApplyPalette += PlayerGraphics_ApplyPalette;
         On.PlayerGraphics.DrawSprites += PlayerGraphics_DrawSprites;
         On.PlayerGraphics.Update += PlayerGraphics_Update;
@@ -180,17 +202,85 @@ static class Hooks
 
             self.TempLast() = temp;
 
-            self.waterFriction = Lerp(0.95f, 0.8f, self.Temp());
-            self.buoyancy = Lerp(0.4f, 1.1f, self.Temp());
-
-            WaterCollision(self, self.bodyChunks[0]);
-            WaterCollision(self, self.bodyChunks[1]);
+            self.waterFriction = Lerp(0.96f, 0.8f, self.Temp());
+            self.buoyancy = Lerp(0.3f, 1.1f, self.Temp());
 
             // This cat doesn't breathe.
             self.airInLungs = 1f;
             self.aerobicLevel = 0f;
 
+            UpdateWaterCollision(self);
             UpdateStats(self, temp);
+
+            if (plrData[self].steamSound > 0) {
+                plrData[self].steamSound -= 1;
+
+                self.room.PlaySound(SoundID.Gate_Water_Steam_Puff, self.firstChunk.pos, 0.35f, 1.2f);
+            }
+        }
+    }
+
+    private static void UpdateWaterCollision(Player self)
+    {
+        // Cool down if any part of the body is submerged
+        Cool(self,
+             temperature: self.bodyChunks[0].submersion / 100,
+             smokeIntensity: self.bodyChunks[0].submersion * 0.5f,
+             smokePos: self.bodyChunks[0].pos + Random.insideUnitCircle * 5,
+             smokeVel: new Vector2(0, 5) + Random.insideUnitCircle * 5
+             );
+
+        Cool(self,
+             temperature: self.bodyChunks[1].submersion / 400,
+             smokeIntensity: self.bodyChunks[1].submersion * 0.5f,
+             smokePos: self.bodyChunks[1].pos + Random.insideUnitCircle * 5,
+             smokeVel: new Vector2(0, 5) + Random.insideUnitCircle * 5
+             );
+
+        // Iterate room's objects safely
+        var iterate = self.room.updateList;
+        var newObjects = new List<UpdatableAndDeletable>();
+
+        self.room.updateList = newObjects;
+
+        foreach (var updateable in iterate) {
+            if (updateable is WaterDrip drip) {
+                Droplet(self, drip);
+            }
+            else if (updateable is WaterFall waterfall) {
+                Waterfall(self, waterfall);
+            }
+        }
+
+        iterate.AddRange(newObjects);
+
+        self.room.updateList = iterate;
+
+        // Collision logic for water drops and waterfalls
+        static void Droplet(Player self, WaterDrip drip)
+        {
+            if ((self.bodyChunks[0].pos - drip.pos).MagnitudeLessThan(self.bodyChunks[0].rad + drip.width) ||
+                (self.bodyChunks[1].pos - drip.pos).MagnitudeLessThan(self.bodyChunks[1].rad + drip.width)) {
+
+                Cool(self, 1 / 100f, 0.25f, drip.pos, -drip.vel * 0.5f);
+
+                drip.life = 0;
+            }
+        }
+
+        static void Waterfall(Player self, WaterFall waterfall)
+        {
+            FloatRect bounds = new(waterfall.FloatLeft, waterfall.strikeLevel, waterfall.FloatRight, waterfall.startLevel);
+
+            foreach (var chunk in self.bodyChunks) {
+                FloatRect bounds2 = bounds;
+
+                bounds2.Grow(chunk.rad);
+
+                if (bounds2.Vector2Inside(chunk.pos)) {
+                    Cool(self, 1 / 600f, 0.3f, chunk.pos, Random.insideUnitCircle * 2);
+                }
+            }
         }
     }
 
@@ -208,29 +298,12 @@ static class Hooks
         stats.runspeedFac = Lerp(0.95f, 1.25f, temperature);
     }
 
-    private static void WaterCollision(Player player, BodyChunk chunk)
-    {
-        if (chunk.submersion > 0 && player.Temp() > 0) {
-            // Create steam object if there's none currently
-            if (!plrData[player].steam.TryGetTarget(out var steam)) {
-                plrData[player].steam = new(steam = new LavaSteam(player.room));
-
-                player.room.AddObject(steam);
-            }
-
-            Vector2 vel = new Vector2(0, 5) + Random.insideUnitCircle * 5;
-            steam.EmitSmoke(chunk.pos, vel, chunk.submersion * 0.5f);
-
-            float ticksToFreeze = chunk.index == 0 ? 40 : 180;
-
-            player.Temp() -= chunk.submersion / ticksToFreeze;
-            player.Temp() = Clamp01(player.Temp());
-
-            player.room.PlaySound(SoundID.Gate_Water_Steam_Puff, chunk, false, 0.5f, 1.1f);
-        }
-    }
-
     // -- Graphics --
+
+    private static Color Player_ShortCutColor(On.Player.orig_ShortCutColor orig, Player self)
+    {
+        return self.IsLavaCat() ? self.SkinColor() : orig(self);
+    }
 
     private static void PlayerGraphics_ApplyPalette(On.PlayerGraphics.orig_ApplyPalette orig, PlayerGraphics self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, RoomPalette palette)
     {
@@ -318,7 +391,7 @@ static class Hooks
             // Dampen glow light source
             if (self.lightSource != null) {
                 self.lightSource.color = PlayerManager.GetSlugcatColor(self.player) with { a = self.player.Temp() };
-                self.lightSource.rad = 150 * self.player.Temp();
+                self.lightSource.rad = 200 * self.player.Temp();
             }
 
             for (int i = 0; i < lights.Length; i++) {
@@ -347,7 +420,7 @@ static class Hooks
                 }
                 if (RngChance(0.2f)) {
                     float minRad = 50f;
-                    float maxRad = Lerp(250f, 100f, i / (lights.Length - 1f));
+                    float maxRad = Lerp(350f, 150f, i / (lights.Length - 1f));
                     lights[i].targetRad = Lerp(minRad, maxRad, Sqrt(Random.value)) * self.player.Temp();
                 }
                 lights[i].offset = Vector2.Lerp(lights[i].offset, lights[i].targetOffset, 0.2f);
