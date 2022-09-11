@@ -1,67 +1,97 @@
 {
   "images": [
     {
-      "name": "BGBase - 7.png",
-      "x": 250,
-      "y": 260,
+      "name": "0 - BG.png",
+      "x": 424,
+      "y": 232,
       "depth": 3.5
     },
     {
-      "name": "BGGrass - 6.png",
-      "x": 244,
-      "y": 270,
-      "depth": 3.0
+      "name": "1 - Fire.png",
+      "x": 404,
+      "y": 266,
+      "depth": 3.4
     },
     {
-      "name": "Smoke - 5.png",
-      "x": 290,
-      "y": 548,
-      "depth": 2.9
+      "name": "2 - Ground.png",
+      "x": 488,
+      "y": 278,
+      "depth": 3.3
     },
     {
-      "name": "Lava Slugcat - 4.png",
-      "x": 536,
-      "y": 224,
+      "name": "3 - BGGrass.png",
+      "x": 384,
+      "y": 320,
+      "depth": 3.2
+    },
+    {
+      "name": "4 - BGGrass.png",
+      "x": 406,
+      "y": 340,
+      "depth": 3.1
+    },
+    {
+      "name": "5 - MGGrass.png",
+      "x": 368,
+      "y": 346,
+      "depth": 2.8
+    },
+    {
+      "name": "6 - MGGrass.png",
+      "x": 364,
+      "y": 272,
+      "depth": 2.7
+    },
+    {
+      "name": "7 - MGGrass.png",
+      "x": 358,
+      "y": 280,
       "depth": 2.6
     },
     {
-      "name": "MG grass - 3.png",
-      "x": 172,
-      "y": 292,
-      "depth": 2.4
+      "name": "8 - Smoke.png",
+      "x": 426,
+      "y": 360,
+      "depth": 2.5
     },
     {
-      "name": "FGparticles - 2.png",
-      "x": 674,
-      "y": 516,
-      "depth": 2.3
+      "name": "9 - Cat.png",
+      "x": 568,
+      "y": 264,
+      "depth": 2.2
     },
     {
-      "name": "FGparticles - 1.png",
-      "x": 274,
-      "y": 338,
-      "depth": 2.0,
-      "shader": "Overlay"
+      "name": "10 - Flame.png",
+      "x": 686,
+      "y": 484,
+      "depth": 2.1
     },
     {
-      "name": "FGplants - 0.png",
-      "x": 284,
-      "y": 110,
-      "depth": 1.5
+      "name": "11 - Particles.png",
+      "x": 426,
+      "y": 310,
+      "depth": 2.1
     },
-
     {
-      "name": "Slugcat - Lava - Flat.png",
+      "name": "12 - FGGrass.png",
+      "x": 458,
+      "y": 194,
+      "depth": 2.0
+    },
+    {
+      "name": "Flat.png",
       "x": 0,
       "y": 0,
       "flatmode": true,
       "crisp": false
     }
   ],
-  "idledepths": [ 2.5 ],
+  "idledepths": [
+    2.2
+  ],
   "markx": 680,
-  "marky": 600,
+  "marky": 530,
   "glowx": 660,
-  "glowy": 420,
-  "slugcatdepth": 2.5
+  "glowy": 530,
+  "slugcatdepth": 2.2
 }
