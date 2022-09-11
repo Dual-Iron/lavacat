@@ -4,15 +4,27 @@ namespace LavaCat;
 
 sealed class LavaFireSprite : HolyFire.HolyFireSprite
 {
-    public LavaFireSprite(Vector2 pos) : base(pos)
+    private readonly bool foreground;
+
+    public LavaFireSprite(Vector2 pos, bool foreground = false) : base(pos)
     {
+        this.foreground = foreground;
     }
 
-    public override void AddToContainer(RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, FContainer newContatiner)
+    public override void AddToContainer(RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, FContainer newContainer)
     {
-        base.AddToContainer(sLeaser, rCam, newContatiner);
+        if (foreground) {
+            newContainer ??= rCam.ReturnFContainer("Items");
+        }
+
+        base.AddToContainer(sLeaser, rCam, newContainer);
 
         // Fire should render behind the player
-        sLeaser.sprites[0].MoveToBack();
+        if (foreground) {
+            sLeaser.sprites[0].MoveToFront();
+        }
+        else {
+            sLeaser.sprites[0].MoveToBack();
+        }
     }
 }

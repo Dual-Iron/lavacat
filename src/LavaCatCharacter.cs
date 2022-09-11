@@ -6,9 +6,6 @@ namespace LavaCat;
 
 sealed class LavaCatCharacter : SlugBaseCharacter
 {
-    // RGB (255, 180, 60)
-    public static readonly HSLColor Lava = new(0.10f, 1.00f, 0.60f);
-
     public LavaCatCharacter() : base("lavacat", FormatVersion.V1, 2, true)
     {
     }
@@ -23,7 +20,7 @@ sealed class LavaCatCharacter : SlugBaseCharacter
 
     public override Color? SlugcatColor(int slugcatCharacter, Color baseColor)
     {
-        HSLColor color = Lava;
+        HSLColor color = Plugin.LavaColor;
 
         bool isStoryMode = slugcatCharacter == -1;
         if (!isStoryMode) {
@@ -41,7 +38,7 @@ sealed class LavaCatCharacter : SlugBaseCharacter
 
     public override void GetFoodMeter(out int maxFood, out int foodToSleep)
     {
-        maxFood = 8;
+        maxFood = 10;
         foodToSleep = 7;
     }
 
