@@ -33,6 +33,17 @@ static class Extensions
         return instance;
     }
 
+    public static void Cool(this PhysicalObject o, float temperatureLoss, float smokeIntensity, Vector2 smokePos, Vector2 smokeVel)
+    {
+        if (o.Temperature() > 0 && temperatureLoss > 0) {
+            o.Temperature() = Mathf.Clamp01(o.Temperature() - temperatureLoss);
+            o.TemperatureChange() = Mathf.Min(o.TemperatureChange(), 0);
+
+            o.room.SteamManager().EmitSmoke(smokePos, smokeVel, smokeIntensity);
+            o.SteamSound() = 7;
+        }
+    }
+
     // -- Math --
 
     public static float Rng(int from, int to) => Random.Range(from, to);

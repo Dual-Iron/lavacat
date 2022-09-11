@@ -22,7 +22,8 @@ sealed class Plugin : BaseUnityPlugin
         PlayerManager.RegisterCharacter(Character);
 
         try {
-            Hooks.Apply();
+            PlayerHooks.Apply();
+            HeatHooks.Apply();
         }
         catch (Exception e) {
             Logger.LogError(e);
