@@ -59,7 +59,7 @@ static class PlayerHooks
         orig(self, manager);
 
         foreach (var player in self.Players) {
-            if (player.state is PlayerState state) {
+            if (player?.state is PlayerState state) {
                 float temperature = state.foodInStomach / (float)SlugcatStats.SlugcatFoodMeter(Plugin.Character.SlugcatIndex).x;
 
                 player.Temperature() = temperature;
@@ -88,13 +88,11 @@ static class PlayerHooks
             int quarterPips = FloorToInt(4 * (pips - fullPips));
 
             // These get overridden later
+            plr.playerState.foodInStomach = fullPips;
             plr.playerState.quarterFoodPoints = quarterPips;
+            foodMeter.quarterPipShower.displayQuarterFood = quarterPips;
 
-            if (foodMeter.quarterPipShower.displayQuarterFood > quarterPips) {
-                foodMeter.quarterPipShower.displayQuarterFood = quarterPips;
-            }
-
-            while (foodMeter.showCount > plr.playerState.foodInStomach) {
+            while (foodMeter.showCount > fullPips) {
                 foodMeter.showCount--;
 
                 var pip = foodMeter.circles[foodMeter.showCount];
@@ -104,7 +102,7 @@ static class PlayerHooks
                 pip.rads[0, 1] += 0.6f;
             }
 
-            while (foodMeter.showCount < plr.playerState.foodInStomach) {
+            while (foodMeter.showCount < fullPips) {
                 var pip = foodMeter.circles[foodMeter.showCount];
                 pip.foodPlopped = true;
                 pip.rads[0, 0] = pip.circles[0].snapRad + 1.5f;

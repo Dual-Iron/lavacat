@@ -221,8 +221,12 @@ static class HeatHooks
 
                 player.WispySmoke().Emit(player.Hand(grasp).pos, new Vector2(0, 0.5f), Plugin.LavaColor.rgb);
 
+                // Show food bar for food items
+                if (isFood) {
+                    player.abstractCreature.world.game.cameras[0].hud.foodMeter.visibleCounter = 100;
+                }
                 // Heat up non-food items rapidly by holding PCKP
-                if (!isFood) {
+                else {
                     Equalize(player, o, progress * 0.25f);
                 }
             }
