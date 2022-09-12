@@ -1,4 +1,5 @@
 ﻿using SlugBase;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -10,8 +11,8 @@ sealed class LavaCatCharacter : SlugBaseCharacter
     {
     }
 
-    public override string DisplayName => "The Hothead";
-    public override string Description => "this cat is too hot! hot damn";
+    public override string DisplayName => "The Melted";
+    public override string Description => "this cat is a real hottie";
 
     public override string StartRoom => "SB_S04";
     public override bool CanSkipTempleGuards => false;
@@ -52,5 +53,29 @@ sealed class LavaCatCharacter : SlugBaseCharacter
         string pathFull = string.Join(".", path);
 
         return typeof(LavaCatCharacter).Assembly.GetManifestResourceStream(pathFull);
+    }
+
+    public override CustomSaveState CreateNewSave(PlayerProgression progression)
+    {
+        return new LavaCatSaveState(progression);
+    }
+}
+
+sealed class LavaCatSaveState : CustomSaveState
+{
+    public int burntPearls;
+
+    public LavaCatSaveState(PlayerProgression progression) : base(progression, Plugin.Character)
+    {
+    }
+
+    public override void Save(Dictionary<string, string> data)
+    {
+        data["burntPearls"] = ((char)burntPearls).ToString();
+    }
+
+    public override void Load(Dictionary<string, string> data)
+    {
+        burntPearls = data.TryGetValue("burntPearls", out string s) ? s[0] : 0;
     }
 }

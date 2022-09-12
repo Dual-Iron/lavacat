@@ -189,13 +189,19 @@ static class HeatHooks
 
             result = false;
 
-            if (heat && player.input[0].pckp && player.bodyChunks[0].submersion <= 0 && player.bodyChunks[1].submersion <= 0) {
+            if (heat && player.input[0].pckp && player.Submersion <= 0) {
                 foreach (var grasp in player.grasps) {
                     if (grasp?.grabbed is PhysicalObject o && CanHeat(player, o)) {
                         HeatUpdate(player, o, grasp);
                         return;
                     }
                 }
+            }
+
+            bool suicide = player.input[0].x == 0 && player.input[0].y == 0 && !player.input[0].jmp && !player.input[0].thrw;
+            if (suicide && player.input[0].pckp && player.Submersion >= 0.99f && player.grasps.All(g => g == null)) {
+                Suicide(player);
+                return;
             }
 
             player.HeatProgress() = 0;
@@ -257,6 +263,41 @@ static class HeatHooks
             else {
                 progress = 0;
             }
+        }
+
+        static void Suicide(Player player)
+        {
+            ref float progress = ref player.HeatProgress();
+
+            if (progress > 1f) {
+                progress = 0;
+
+                player.room.PlaySound(SoundID.Water_Nut_Swell, player.firstChunk,false, 1, 0.8f);
+
+                // TODO: fugly head explosion
+                player.deaf += 500000;
+                player.Die();
+            }
+
+            if (progress > 1/2f) {
+                if (RngChance(0.1f * progress * progress)) {
+                    player.room.Steam().Emit(player.firstChunk.pos, Random.insideUnitCircle * (2 + 6 * progress), 0.5f);
+                    player.SteamSound() = 7;
+                }
+
+                player.standing = false;
+
+                Vector2 shake = Random.insideUnitCircle * 2 * progress * progress;
+                player.bodyChunks[0].pos += shake;
+                player.bodyChunks[0].vel += shake;
+                player.bodyChunks[1].pos -= shake;
+                player.bodyChunks[1].vel -= shake;
+            }
+            else if (progress > 1/4f) {
+                player.standing = false;
+            }
+
+            progress += 1 / 400f;
         }
     }
 
@@ -443,7 +484,7 @@ static class HeatHooks
 
     private static int ScavengerAI_CollectScore_PhysicalObject_bool(On.ScavengerAI.orig_CollectScore_PhysicalObject_bool orig, ScavengerAI self, PhysicalObject obj, bool weaponFiltered)
     {
-        if (self.creature.AvoidsHeat() && obj.Temperature() > 0.1f) {
+        if (self.creature.AvoidsHeat() && obj.Temperature() > 0.1f || obj is DataPearl p && p.AbstractPearl.dataPearlType == BurntPearl) {
             return 0;
         }
         return orig(self, obj, weaponFiltered);

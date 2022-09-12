@@ -1,5 +1,6 @@
 ﻿using Mono.Cecil.Cil;
 using MonoMod.Cil;
+using SlugBase;
 using static LavaCat.Extensions;
 
 namespace LavaCat;
@@ -19,13 +20,20 @@ sealed class BurntPearlConvo : Conversation
     {
         PearlIntro();
 
-        string text = Rng(0, 4) switch {
-            0 => "It seems this pearl used to have data, but...<LINE>Has it been... charred? How did you manage this, <PlayerName>?",
-            1 => "I can't discern any pattern from this.<LINE>If there was any information inside, it's too warped for me to parse.",
-            2 => "Oh, <PlayerName>... You gave me a half-melted pearl.",
-            _ => "The contents are scrambled far beyond recognition.<LINE>No doubt, it took an inordinate supply of energy to erase<LINE>any semblance of data so completely. And for what?",
+        if (!oracle.oracle.room.game.TryGetSave(out LavaCatSaveState save)) {
+            events.Add(new TextEvent(this, 0, "Oh. It seems SlugBase encountered an error,<LINE>so I can't read this pearl to you, <PlayerName>. I apologize.", 0));
+            return;
+        }
+
+        string text = save.burntPearls switch {
+            0 => "It seems this pearl used to have data, but... it is unreadable, now.<LINE>No doubt, it took an inordinate supply of energy to damage the pearl like this.",
+            1 => "This kind of damage is familiar. Has it been... charred?<LINE>Did you find it like this, <PlayerName>?",
+            2 => "Oh, <PlayerName>... You gave me another half-melted pearl.",
+            3 => "Ah. Again, it is burnt all the way through. You must be the one doing this.<LINE>Once destroyed in this way, there is no way to recover the contents, you know.",
+            4 => "... Please, <PlayerName>, try bringing me a pearl that is not burnt.",
+            _ => "...",
         };
-        events.Add(new TextEvent(this, 30, text, 10));
+        events.Add(new TextEvent(this, 30, text, 20));
     }
 
     private void PearlIntro()
@@ -34,7 +42,7 @@ sealed class BurntPearlConvo : Conversation
         switch (oracle.State.totalPearlsBrought + oracle.State.miscPearlCounter) {
             case 0:
                 events.Add(new TextEvent(this, 0, oracle.Translate("Ah, you would like me to read this?"), 10));
-                events.Add(new TextEvent(this, 0, oracle.Translate("It's a bit dusty, but I will do my best. Hold on..."), 10));
+                events.Add(new TextEvent(this, 0, oracle.Translate("It's a bit ashy, but I will do my best. Hold on..."), 10));
                 break;
             case 1:
                 events.Add(new TextEvent(this, 0, oracle.Translate("Another pearl! You want me to read this one too? Just a moment..."), 10));
@@ -75,7 +83,19 @@ static class OracleHooks
     // TODO custom 5p and lttm dialogue
     public static void Apply()
     {
+        On.SLOracleBehaviorHasMark.WillingToInspectItem += SLOracleBehaviorHasMark_WillingToInspectItem;
         IL.SLOracleBehaviorHasMark.GrabObject += SLOracleBehaviorHasMark_GrabObject;
+    }
+
+    private static bool SLOracleBehaviorHasMark_WillingToInspectItem(On.SLOracleBehaviorHasMark.orig_WillingToInspectItem orig, SLOracleBehaviorHasMark self, PhysicalObject item)
+    {
+        if (item is DataPearl pearl && pearl.AbstractPearl.dataPearlType == BurntPearl) {
+            // Don't read burnt pearls after the fifth one
+            if (self.oracle.room.game.TryGetSave(out LavaCatSaveState save) && save.burntPearls >= 5) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static void SLOracleBehaviorHasMark_GrabObject(ILContext il)
@@ -94,6 +114,11 @@ static class OracleHooks
                 self.currentConversation = new BurntPearlConvo(self);
                 self.State.totalPearlsBrought++;
                 self.State.totalItemsBrought++;
+                self.State.AddItemToAlreadyTalkedAbout(item.abstractPhysicalObject.ID);
+
+                if (self.oracle.room.game.TryGetSave(out LavaCatSaveState save)) {
+                    save.burntPearls++;
+                }
                 return true;
             }
             return false;

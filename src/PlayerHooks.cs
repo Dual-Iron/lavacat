@@ -27,8 +27,10 @@ static class PlayerHooks
         On.Creature.TerrainImpact += Creature_TerrainImpact;
 
         // Fix underwater movement
+        On.JellyFish.Update += JellyFish_Update;
         On.Creature.Grab += Creature_Grab;
         On.Player.MovementUpdate += Player_MovementUpdate;
+        On.Player.GrabUpdate += Player_GrabUpdate;
         On.Room.FloatWaterLevel += Room_FloatWaterLevel;
 
         // Graphics
@@ -117,7 +119,16 @@ static class PlayerHooks
 
     private static void Player_Update(On.Player.orig_Update orig, Player player, bool eu)
     {
-        orig(player, eu);
+        if (player.IsLavaCat()) {
+            player.Template.canSwim = false;
+        }
+
+        try {
+            orig(player, eu);
+        }
+        finally {
+            player.Template.canSwim = true;
+        }
 
         if (player.IsLavaCat()) {            
             ref float temperature = ref player.Temperature();
@@ -215,6 +226,29 @@ static class PlayerHooks
 
     // -- Player water physics --
 
+    private static void JellyFish_Update(On.JellyFish.orig_Update orig, JellyFish self, bool eu)
+    {
+        orig(self, eu);
+
+        // Make jellyfish get pulled by lavacat
+        float withdrawn = Lerp(10f, 1f, self.tentaclesWithdrawn);
+
+        for (int i = 0; i < self.tentacles.Length; i++) {
+            Vector2[,] tentacle = self.tentacles[i];
+            BodyChunk latchedOnto = self.latchOnToBodyChunks[i];
+            if (latchedOnto != null && (self.Electric || self.room.PointSubmerged(tentacle[tentacle.GetLength(0) - 1, 0]))) {
+                Vector2 diff = self.firstChunk.pos - latchedOnto.pos;
+
+                if (diff.MagnitudeGt(tentacle.GetLength(0) * withdrawn * 1.4f)) {
+                    var weight = self.firstChunk.mass / (self.firstChunk.mass + latchedOnto.mass);
+                    var pull = diff.normalized * (tentacle.GetLength(0) * withdrawn * 1.4f - diff.magnitude) * (1 - weight);
+                    self.firstChunk.pos += pull;
+                    self.firstChunk.vel += pull;
+                }
+            }
+        }
+    }
+
     private static bool Creature_Grab(On.Creature.orig_Grab orig, Creature crit, PhysicalObject obj, int graspUsed, int chunkGrabbed, Creature.Grasp.Shareability shareability, float dominance, bool overrideEquallyDominant, bool pacifying)
     {
         // Prevent leeches from softlocking the game
@@ -230,9 +264,21 @@ static class PlayerHooks
     private static void Player_MovementUpdate(On.Player.orig_MovementUpdate orig, Player player, bool eu)
     {
         movementUpdate = true;
-        orig(player, eu);
-        movementUpdate = false;
+        try {
+            orig(player, eu);
+        }
+        finally {
+            movementUpdate = false;
+        }
     }
+
+    private static void Player_GrabUpdate(On.Player.orig_GrabUpdate orig, Player self, bool eu)
+    {
+        movementUpdate = false;
+
+        orig(self, eu);
+    }
+
     private static float Room_FloatWaterLevel(On.Room.orig_FloatWaterLevel orig, Room room, float horizontalPos)
     {
         // Ignore water level when performing movement update.
