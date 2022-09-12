@@ -1,8 +1,6 @@
 ﻿using Mono.Cecil.Cil;
 using MonoMod.Cil;
-using Smoke;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using UnityEngine;
 using static LavaCat.Extensions;

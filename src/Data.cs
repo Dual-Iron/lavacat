@@ -1,5 +1,4 @@
-﻿using Smoke;
-using UnityEngine;
+﻿using UnityEngine;
 using WeakTables;
 
 namespace LavaCat;

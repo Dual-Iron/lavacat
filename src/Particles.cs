@@ -3,7 +3,6 @@ using Smoke;
 using UnityEngine;
 using static UnityEngine.Mathf;
 using static LavaCat.Extensions;
-using static UnityEngine.ParticleSystem;
 
 namespace LavaCat;
 
