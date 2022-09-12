@@ -12,8 +12,11 @@ static class ExtraData
     static readonly WeakTable<PlayerGraphics, PlayerGraphicsData> graphicsData = new(_ => new PlayerGraphicsData());
 
     public static ref float HeatProgress(this Player p) => ref plrData[p].eatProgress;
-    public static ref WeakRef<BombSmoke> Smoke(this Player p) => ref plrData[p].smoke;
+    public static ref int BlindTimer(this Player p) => ref plrData[p].blindTimer;
 
+    public static ref WeakRef<WispySmoke> WispySmokeRef(this PhysicalObject o) => ref poData[o].smoke;
+
+    public static ref bool AvoidsHeat(this AbstractCreature c) => ref apoData[c].avoidsHeat;
     public static ref float Temperature(this AbstractPhysicalObject o) => ref apoData[o].temperature;
     public static ref float Temperature(this PhysicalObject o) => ref apoData[o.abstractPhysicalObject].temperature;
     public static ref float TemperatureChange(this PhysicalObject o) => ref poData[o].temperatureChange;
@@ -25,19 +28,21 @@ static class ExtraData
 
 sealed class PlayerData
 {
+    public int blindTimer;
     public float eatProgress;
-    public WeakRef<BombSmoke> smoke = new();
 }
 
 sealed class ApoData
 {
     public float temperature;
+    public bool avoidsHeat;
 }
 
 sealed class PoData
 {
     public int steamSound = 0;
     public float temperatureChange;
+    public WeakRef<WispySmoke> smoke = new();
 }
 
 sealed class PlayerGraphicsData

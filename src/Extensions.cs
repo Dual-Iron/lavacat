@@ -23,14 +23,26 @@ static class Extensions
         return Color.Lerp(PlayerManager.GetSlugcatColor(player), gray, 1 - temp);
     }
 
-    public static LavaSteam SteamManager(this Room room)
+    static T Instance<T>(this Room room, System.Func<Room, T> factory) where T : UpdatableAndDeletable
     {
-        var instance = room.updateList.OfType<LavaSteam>().FirstOrDefault();
+        var instance = room.updateList.OfType<T>().FirstOrDefault();
         if (instance == null) {
-            instance = new LavaSteam(room);
+            instance = factory(room);
             room.AddObject(instance);
         }
         return instance;
+    }
+
+    public static LavaSteam Steam(this Room room) => room.Instance<LavaSteam>(r => new(r));
+    public static FireSmokeFixed FireSmoke(this Room room) => room.Instance<FireSmokeFixed>(r => new(r));
+    public static WispySmoke WispySmoke(this PhysicalObject o)
+    {
+        if (o.WispySmokeRef().TryGetTarget(out var smoke) && smoke.room == o.room) {
+            return smoke;
+        }
+        smoke = new(o.room);
+        o.WispySmokeRef() = new(smoke);
+        return smoke;
     }
 
     public static void Cool(this PhysicalObject o, float temperatureLoss, float smokeIntensity, Vector2 smokePos, Vector2 smokeVel)
@@ -39,8 +51,19 @@ static class Extensions
             o.Temperature() = Mathf.Clamp01(o.Temperature() - temperatureLoss);
             o.TemperatureChange() = Mathf.Min(o.TemperatureChange(), 0);
 
-            o.room.SteamManager().EmitSmoke(smokePos, smokeVel, smokeIntensity);
+            o.room.Steam().Emit(smokePos, smokeVel, smokeIntensity);
             o.SteamSound() = 7;
+        }
+    }
+
+    public static void BurstIntoFlame(this PhysicalObject o)
+    {
+        for (int i = 0; i < 10 + o.firstChunk.rad; i++) {
+            LavaFireSprite particle = new(o.firstChunk.pos + Random.insideUnitCircle * o.firstChunk.rad * 0.8f, foreground: RngChance(0.5f));
+            particle.vel.x *= 1.5f;
+            particle.vel.y *= 2f;
+            particle.lifeTime += 80;
+            o.room.AddObject(particle);
         }
     }
 
@@ -50,17 +73,15 @@ static class Extensions
     public static float Rng(float from, float to) => Mathf.Lerp(from, to, Random.value * 0.999999f);
     public static bool RngChance(float percent) => Random.value < percent;
     public static Vector2 RngUnitVec() => RWCustom.Custom.RNV();
-    public static T RngElement<T>(this T[] array) => array[Random.Range(0, array.Length)];
+    public static T RandomElement<T>(this T[] array) => array[Random.Range(0, array.Length)];
 
     public static Vector2 RandomPositionInChunk(this BodyChunk chunk, float distanceMultiplier = 1f)
     {
         return chunk.pos + Random.insideUnitCircle * chunk.rad * distanceMultiplier;
     }
 
-    public static bool MagnitudeLessThan(this Vector2 vec, float operand)
-    {
-        return vec.sqrMagnitude < operand * operand;
-    }
+    public static bool MagnitudeLt(this Vector2 vec, float operand) => vec.sqrMagnitude < operand * operand;
+    public static bool MagnitudeGt(this Vector2 vec, float operand) => vec.sqrMagnitude > operand * operand;
 
     // Util
 
@@ -73,6 +94,7 @@ static class Extensions
 
     public static PlayerGraphics Graf(this Player p) => (PlayerGraphics)p.graphicsModule;
     public static SlugcatHand Hand(this Player p, Creature.Grasp grasp) => p.Graf().hands[grasp.graspUsed];
+    public static SlugcatHand Hand(this Player p, int grasp) => p.Graf().hands[grasp];
 
     public static void ReduceFood(this Player player, bool allowMalnourishment = true)
     {

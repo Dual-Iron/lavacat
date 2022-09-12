@@ -20,6 +20,12 @@ static class PlayerHooks
 
         On.Player.Update += Player_Update;
 
+        // Player doesn't really take damage while hot
+        On.Creature.Violence += Creature_Violence;
+
+        // Reduce water droplet spawns
+        On.Creature.TerrainImpact += Creature_TerrainImpact;
+
         // Fix underwater movement
         On.Creature.Grab += Creature_Grab;
         On.Player.MovementUpdate += Player_MovementUpdate;
@@ -71,19 +77,24 @@ static class PlayerHooks
 
     private static void FoodMeter_Update(On.HUD.FoodMeter.orig_Update orig, HUD.FoodMeter foodMeter)
     {
-        orig(foodMeter);
+        if (foodMeter.hud.owner is Player plr && Plugin.Character.IsMe(plr.abstractPhysicalObject.world.game)) {
+            // Prevent food meter from popping up every two seconds
+            foodMeter.lastCount = foodMeter.hud.owner.CurrentFood;
 
-        if (foodMeter.hud.owner is Player player && Plugin.Character.IsMe(player.abstractPhysicalObject.world.game)) {
-            float percent = Clamp01(player.Temperature());
+            // Set food meter according to temperature
+            float percent = Clamp01(plr.Temperature());
             float pips = foodMeter.maxFood * percent;
             int fullPips = FloorToInt(pips);
             int quarterPips = FloorToInt(4 * (pips - fullPips));
 
             // These get overridden later
-            player.playerState.quarterFoodPoints = 0;
-            foodMeter.quarterPipShower.displayQuarterFood = 0;
+            plr.playerState.quarterFoodPoints = quarterPips;
 
-            if (foodMeter.showCount > player.playerState.foodInStomach) {
+            if (foodMeter.quarterPipShower.displayQuarterFood > quarterPips) {
+                foodMeter.quarterPipShower.displayQuarterFood = quarterPips;
+            }
+
+            while (foodMeter.showCount > plr.playerState.foodInStomach) {
                 foodMeter.showCount--;
 
                 var pip = foodMeter.circles[foodMeter.showCount];
@@ -92,29 +103,32 @@ static class PlayerHooks
                 pip.rads[0, 0] = pip.circles[0].snapRad + 1.5f;
                 pip.rads[0, 1] += 0.6f;
             }
-            else if (foodMeter.showCount < player.playerState.foodInStomach) {
+
+            while (foodMeter.showCount < plr.playerState.foodInStomach) {
                 var pip = foodMeter.circles[foodMeter.showCount];
                 pip.foodPlopped = true;
                 pip.rads[0, 0] = pip.circles[0].snapRad + 1.5f;
                 pip.rads[0, 1] += 0.6f;
 
                 foodMeter.showCount++;
-            }
-            else {
-                player.playerState.quarterFoodPoints = quarterPips;
-                foodMeter.quarterPipShower.displayQuarterFood = quarterPips;
-            }
+            } 
         }
+
+        orig(foodMeter);
     }
 
     private static void Player_Update(On.Player.orig_Update orig, Player player, bool eu)
     {
         orig(player, eu);
 
-        if (player.IsLavaCat()) {
+        if (player.IsLavaCat()) {            
             ref float temperature = ref player.Temperature();
 
             player.playerState.foodInStomach = FloorToInt(player.MaxFoodInStomach * Clamp01(temperature));
+
+            if (player.eatExternalFoodSourceCounter < 10) {
+                player.eatExternalFoodSourceCounter = 10;
+            }
 
             // If too hot, cool down quickly
             if (temperature > 1) {
@@ -156,6 +170,51 @@ static class PlayerHooks
         }
     }
 
+    // Balance changes
+
+    private static void Creature_Violence(On.Creature.orig_Violence orig, Creature crit, BodyChunk source, Vector2? directionAndMomentum, BodyChunk hitChunk, PhysicalObject.Appendage.Pos hitAppendage, Creature.DamageType type, float damage, float stunBonus)
+    {
+        if (crit is Player p && p.IsLavaCat()) {
+            if (p.Temperature() > 0.5f) {
+                float reduction = p.Temperature() * 0.6f;
+
+                damage *= 1 - reduction;
+                stunBonus *= 1 - reduction;
+            }
+
+            if (type == Creature.DamageType.Electric) {
+                damage *= 0.01f;
+                stunBonus *= 0.01f;
+            }
+        }
+
+        orig(crit, source, directionAndMomentum, hitChunk, hitAppendage, type, damage, stunBonus);
+    }
+
+    private static void Creature_TerrainImpact(On.Creature.orig_TerrainImpact orig, Creature self, int chunk, RWCustom.IntVector2 direction, float speed, bool firstContact)
+    {
+        if (self is Player p && p.IsLavaCat()) {
+            // Remove any water droplets that spawn during this method call
+            var objects = self.room.updateList;
+            self.room.updateList = new();
+
+            // Prevent dying from big heights
+            bool invul = self.room.game.rainWorld.setup.invincibility;
+            self.room.game.rainWorld.setup.invincibility = true;
+
+            orig(self, chunk, direction, speed, firstContact);
+
+            self.room.game.rainWorld.setup.invincibility = invul;
+
+            self.room.updateList.RemoveAll(u => u is WaterDrip);
+            objects.AddRange(self.room.updateList);
+            self.room.updateList = objects;
+        }
+        else {
+            orig(self, chunk, direction, speed, firstContact);
+        }
+    }
+
     // -- Player water physics --
 
     private static bool Creature_Grab(On.Creature.orig_Grab orig, Creature crit, PhysicalObject obj, int graspUsed, int chunkGrabbed, Creature.Grasp.Shareability shareability, float dominance, bool overrideEquallyDominant, bool pacifying)
@@ -186,7 +245,7 @@ static class PlayerHooks
 
     private static float PlayerObjectLooker_HowInterestingIsThisObject(On.PlayerGraphics.PlayerObjectLooker.orig_HowInterestingIsThisObject orig, object self, PhysicalObject obj)
     {
-        if (self is PlayerGraphics.PlayerObjectLooker looker && looker.owner.player.IsLavaCat() && looker.owner.player.HeatProgress() > 1 / 30f) {
+        if (self is PlayerGraphics.PlayerObjectLooker looker && looker.owner.player.BlindTimer() > 0) {
             return float.NegativeInfinity;
         }
         return orig(self, obj);
@@ -231,6 +290,11 @@ static class PlayerHooks
     {
         orig(graf);
 
+        if (graf.player.BlindTimer() > 0) {
+            graf.player.BlindTimer() -= 1;
+            graf.objectLooker.LookAtNothing();
+        }
+
         if (graf.player.IsLavaCat()) {
             graf.breath = 0f;
             graf.lastBreath = 0f;
@@ -249,7 +313,7 @@ static class PlayerHooks
             }
             // Emit fire on tail
             if (RngChance(chance)) {
-                LavaFireSprite particle = new(graf.tail.RngElement().pos);
+                LavaFireSprite particle = new(graf.tail.RandomElement().pos);
                 particle.vel.x *= 0.25f;
                 particle.life *= 0.70f;
                 graf.player.room.AddObject(particle);
