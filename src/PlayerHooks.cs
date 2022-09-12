@@ -9,6 +9,8 @@ static class PlayerHooks
 {
     public static void Apply()
     {
+        On.Player.Die += Yipee;
+
         // Sleep in to avoid most of the raindrops at the start of the cycle
         On.RainCycle.ctor += RainCycle_ctor;
 
@@ -39,6 +41,19 @@ static class PlayerHooks
         On.PlayerGraphics.ApplyPalette += PlayerGraphics_ApplyPalette;
         On.PlayerGraphics.DrawSprites += PlayerGraphics_DrawSprites;
         On.PlayerGraphics.Update += PlayerGraphics_Update;
+    }
+
+    private static void Yipee(On.Player.orig_Die orig, Player self)
+    {
+        orig(self);
+
+        if (self.IsLavaCat()) {
+            self.Temperature() = 2;
+
+            AbstractPhysicalObject abs = new(self.room.world, AbstractPhysicalObject.AbstractObjectType.ScavengerBomb, null, self.abstractCreature.pos, self.room.game.GetNewID());
+            ScavengerBomb bomb = new(abs, self.room.world) { room = self.room };
+            bomb.Explode(self.firstChunk);
+        }
     }
 
     private static void RainCycle_ctor(On.RainCycle.orig_ctor orig, RainCycle self, World world, float minutes)
@@ -133,7 +148,9 @@ static class PlayerHooks
         if (player.IsLavaCat()) {            
             ref float temperature = ref player.Temperature();
 
-            player.playerState.foodInStomach = FloorToInt(player.MaxFoodInStomach * Clamp01(temperature));
+            if (player.abstractCreature.world.game.IsStorySession) {
+                player.playerState.foodInStomach = FloorToInt(player.MaxFoodInStomach * Clamp01(temperature));
+            }
 
             if (player.eatExternalFoodSourceCounter < 10) {
                 player.eatExternalFoodSourceCounter = 10;
@@ -194,6 +211,17 @@ static class PlayerHooks
             if (type == Creature.DamageType.Electric) {
                 damage *= 0.01f;
                 stunBonus *= 0.01f;
+            }
+
+            for (int i = 0; i < 30 + 50 * damage + 0.5f * stunBonus; i++) {
+                Vector2 pos = hitChunk.pos + Random.insideUnitCircle * hitChunk.rad * 0.5f;
+                p.room.AddObject(new MysteriousDust() {
+                    pos = pos,
+                    lastPos = pos,
+                    vel = directionAndMomentum is Vector2 vec
+                            ? -5 * vec + -5 * Random.insideUnitCircle * vec.magnitude
+                            : Random.insideUnitCircle * 30
+                });
             }
         }
 
@@ -388,7 +416,7 @@ static class PlayerHooks
 
             // Dampen glow light source
             if (graf.lightSource != null) {
-                graf.lightSource.color = PlayerManager.GetSlugcatColor(graf.player) with { a = graf.player.Temperature() };
+                graf.lightSource.color = LavaColor.rgb with { a = graf.player.Temperature() };
                 graf.lightSource.rad = 200 * graf.player.Temperature();
             }
 

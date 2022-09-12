@@ -39,6 +39,9 @@ static class HeatHooks
         On.Rock.Update += Rock_Update;
         On.Rock.DrawSprites += Rock_DrawSprites;
 
+        On.Lantern.Update += Lantern_Update;
+        On.Lantern.DrawSprites += Lantern_DrawSprites;
+
         On.FlareBomb.Update += FlareBomb_Update;
         On.FlareBomb.DrawSprites += FlareBomb_DrawSprites;
         On.Creature.Blind += Creature_Blind;
@@ -131,7 +134,7 @@ static class HeatHooks
             Player p => Inedible(p.IsLavaCat() ? 0.01f : 0.10f),
             DataPearl => Inedible(0.07f),
             Creature => Inedible(0.07f),
-            _ => Inedible(0.01f),
+            _ => Inedible(0.025f),
         };
     }
 
@@ -238,7 +241,8 @@ static class HeatHooks
 
                 // Show food bar for food items
                 if (isFood) {
-                    player.abstractCreature.world.game.cameras[0].hud.foodMeter.visibleCounter = 100;
+                    if (player.abstractCreature.world.game.cameras[0].hud?.foodMeter != null)
+                        player.abstractCreature.world.game.cameras[0].hud.foodMeter.visibleCounter = 100;
 
                     int particleCount = (int)Rng(0, progress * 10);
                     for (int i = 0; i < particleCount; i++) {
@@ -594,6 +598,33 @@ static class HeatHooks
             color.lightness *= 0.5f;
             sLeaser.sprites[1].color = color.rgb;
         }
+    }
+
+    // Lanterns
+
+    static readonly Color lanternHot = (LavaColor with { lightness = 0.9f }).rgb;
+
+    private static void Lantern_Update(On.Lantern.orig_Update orig, Lantern self, bool eu)
+    {
+        orig(self, eu);
+
+        float temp = self.Temperature();
+
+        if (self.lightSource != null) {
+            self.lightSource.color = Color.Lerp(new(1f, 0.2f, 0f), lanternHot, temp);
+            self.lightSource.setRad += 250f * temp;
+        }
+    }
+
+    private static void Lantern_DrawSprites(On.Lantern.orig_DrawSprites orig, Lantern self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
+    {
+        orig(self, sLeaser, rCam, timeStacker, camPos);
+
+        float temp = self.Temperature();
+
+        sLeaser.sprites[0].color = Color.Lerp(new(1f, 0.2f, 0f), lanternHot, temp);
+        sLeaser.sprites[2].color = Color.Lerp(Color.Lerp(new(1f, 0.2f, 0f), new(1f, 1f, 1f), 0.3f), lanternHot, temp);
+        sLeaser.sprites[3].color = Color.Lerp(new(1f, 0.4f, 0.3f), lanternHot, temp);
     }
 
     // Flarebombs

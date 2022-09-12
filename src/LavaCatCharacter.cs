@@ -12,7 +12,7 @@ sealed class LavaCatCharacter : SlugBaseCharacter
     }
 
     public override string DisplayName => "The Melted";
-    public override string Description => "this cat is a real hottie";
+    public override string Description => "made by hotties, for hotties, and of hotties";
 
     public override string StartRoom => "SB_S04";
     public override bool CanSkipTempleGuards => false;
