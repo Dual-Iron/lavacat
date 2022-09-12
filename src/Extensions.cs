@@ -6,6 +6,12 @@ namespace LavaCat;
 
 static class Extensions
 {
+    // Fake extensions
+    public const DataPearl.AbstractDataPearl.DataPearlType BurntPearl = (DataPearl.AbstractDataPearl.DataPearlType)(-2948);
+
+    // RGB (255, 180, 60)
+    public static readonly HSLColor LavaColor = new(0.10f, 1.00f, 0.60f);
+
     // -- Lava cat --
     public static bool IsLavaCat(this Player player) => Plugin.Character.IsMe(player);
 

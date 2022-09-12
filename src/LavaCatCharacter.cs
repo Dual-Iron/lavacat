@@ -18,9 +18,14 @@ sealed class LavaCatCharacter : SlugBaseCharacter
     public override bool GatesPermanentlyUnlock => false;
     public override bool HasGuideOverseer => false;
 
+    public override bool CanEatMeat(Player player, Creature creature)
+    {
+        return false;
+    }
+
     public override Color? SlugcatColor(int slugcatCharacter, Color baseColor)
     {
-        HSLColor color = Plugin.LavaColor;
+        HSLColor color = Extensions.LavaColor;
 
         bool isStoryMode = slugcatCharacter == -1;
         if (!isStoryMode) {
@@ -39,7 +44,7 @@ sealed class LavaCatCharacter : SlugBaseCharacter
     public override void GetFoodMeter(out int maxFood, out int foodToSleep)
     {
         maxFood = 10;
-        foodToSleep = 7;
+        foodToSleep = 6;
     }
 
     public override Stream GetResource(params string[] path)

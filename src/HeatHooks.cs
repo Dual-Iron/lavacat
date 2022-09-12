@@ -24,8 +24,10 @@ static class HeatHooks
         On.PhysicalObject.Collide += PhysicalObject_Collide;
         On.PhysicalObject.Update += PhysicalObject_Update;
         On.SeedCob.Update += SeedCob_Update;
+
         On.Creature.Update += Creature_Update;
         On.PreyTracker.TrackedPrey.Attractiveness += TrackedPrey_Attractiveness;
+        On.ScavengerAI.CollectScore_PhysicalObject_bool += ScavengerAI_CollectScore_PhysicalObject_bool;
 
         On.Fly.Update += Fly_Update;
 
@@ -37,11 +39,20 @@ static class HeatHooks
         On.Rock.Update += Rock_Update;
         On.Rock.DrawSprites += Rock_DrawSprites;
 
+        On.FlareBomb.Update += FlareBomb_Update;
+        On.FlareBomb.DrawSprites += FlareBomb_DrawSprites;
+        On.Creature.Blind += Creature_Blind;
+
+        On.DataPearl.ApplyPalette += DataPearl_ApplyPalette;
+        On.DataPearl.UniquePearlMainColor += DataPearl_UniquePearlMainColor;
+        On.DataPearl.UniquePearlHighLightColor += DataPearl_UniquePearlHighLightColor;
+        On.DataPearl.DrawSprites += DataPearl_DrawSprites;
+
         On.FirecrackerPlant.Update += FirecrackerPlant_Update;
         On.ExplosiveSpear.Update += ExplosiveSpear_Update;
         On.ScavengerBomb.Update += ScavengerBomb_Update;
 
-        // TODO explosives should explode, flarebombs turn orange, various things should smoke/ignite/cook
+        // TODO make misc objects start smoking when hot
     }
 
     private static bool FireParticleChance(float temp)
@@ -115,17 +126,18 @@ static class HeatHooks
 
         return o switch {
             IPlayerEdible or WaterNut or FlyLure => Edible(0.2f),
-            Spear => Inedible(0.80f),
+            Spear => Inedible(0.50f),
             Rock => Inedible(0.05f),
             Player p => Inedible(p.IsLavaCat() ? 0.01f : 0.10f),
-            Creature => Inedible(0.10f),
+            DataPearl => Inedible(0.07f),
+            Creature => Inedible(0.07f),
             _ => Inedible(0.01f),
         };
     }
 
     private static HSLColor HeatedBlackColor(float minLightness, float temp)
     {
-        return new(hue: Mathf.Lerp(0f, Plugin.LavaColor.hue, temp),
+        return new(hue: Mathf.Lerp(0f, LavaColor.hue, temp),
                    saturation: Mathf.Lerp(0.5f, 1f, temp),
                    lightness: Mathf.Lerp(minLightness, 1f, temp * temp)
                    );
@@ -179,7 +191,8 @@ static class HeatHooks
 
             if (heat && player.input[0].pckp && player.bodyChunks[0].submersion <= 0 && player.bodyChunks[1].submersion <= 0) {
                 foreach (var grasp in player.grasps) {
-                    if (grasp?.grabbed is PhysicalObject o && HeatUpdate(player, o, grasp)) {
+                    if (grasp?.grabbed is PhysicalObject o && CanHeat(player, o)) {
+                        HeatUpdate(player, o, grasp);
                         return;
                     }
                 }
@@ -188,17 +201,21 @@ static class HeatHooks
             player.HeatProgress() = 0;
         }
 
-        static bool HeatUpdate(Player player, PhysicalObject o, Creature.Grasp grasp)
+        static bool CanHeat(Player p, PhysicalObject o)
+        {
+            bool isFood = HeatProperties(o).IsFood;
+            if (!isFood && o.Temperature() - p.Temperature() > -0.01f) {
+                return false;
+            }
+            return !o.slatedForDeletetion;
+        }
+
+        static void HeatUpdate(Player player, PhysicalObject o, Creature.Grasp grasp)
         {
             ref float progress = ref player.HeatProgress();
 
             bool isFood = HeatProperties(o).IsFood;
-
-            if (!isFood && o.Temperature() - player.Temperature() > -0.01f) {
-                return false;
-            }
-
-            if (progress > 1f && isFood) {
+            if (progress >= 1f && isFood) {
                 progress = 0;
 
                 o.Destroy();
@@ -207,23 +224,24 @@ static class HeatHooks
                 player.TemperatureChange() += o.TotalMass + 0.005f;
             }
 
-            if (progress > 1 / 30f) {
+            if (progress > 1/4f) {
                 player.Blink(5);
                 player.BlindTimer() = 10;
 
-                int particleCount = (int)Rng(0, progress * 10);
-                for (int i = 0; i < particleCount; i++) {
-                    LavaFireSprite particle = new(o.firstChunk.pos + Random.insideUnitCircle * o.firstChunk.rad * 0.5f, foreground: RngChance(0.50f));
-                    particle.vel.x *= 0.5f;
-                    particle.vel.y *= 1.5f;
-                    player.room.AddObject(particle);
-                }
-
-                player.WispySmoke().Emit(player.Hand(grasp).pos, new Vector2(0, 0.5f), Plugin.LavaColor.rgb);
+                player.WispySmoke().Emit(player.Hand(grasp).pos, new Vector2(0, 0.5f), LavaColor.rgb);
 
                 // Show food bar for food items
                 if (isFood) {
                     player.abstractCreature.world.game.cameras[0].hud.foodMeter.visibleCounter = 100;
+
+                    int particleCount = (int)Rng(0, progress * 10);
+                    for (int i = 0; i < particleCount; i++) {
+                        LavaFireSprite particle = new(o.firstChunk.pos + Random.insideUnitCircle * o.firstChunk.rad * 0.5f, foreground: RngChance(0.50f));
+                        particle.vel.x *= 0.5f;
+                        particle.vel.y *= 1.5f;
+                        particle.lifeTime += (int)(progress * 80);
+                        player.room.AddObject(particle);
+                    }
                 }
                 // Heat up non-food items rapidly by holding PCKP
                 else {
@@ -231,14 +249,14 @@ static class HeatHooks
                 }
             }
 
-            if (isFood) {
-                progress += 1 / (80f + 160f * o.TotalMass);
+            if (CanHeat(player, o)) {
+                float progressTime = isFood ? 80 + 160 * o.TotalMass : 80;
+                progress += 1 / progressTime;
+                progress = Mathf.Clamp01(progress);
             }
             else {
-                progress += 1 / 80f;
+                progress = 0;
             }
-
-            return true;
         }
     }
 
@@ -332,7 +350,7 @@ static class HeatHooks
                 player.room.AddObject(particle);
             }
 
-            player.room.FireSmoke().Emit(player.Hand(hand).pos, new Vector2(0, 0.5f), Plugin.LavaColor.rgb, 10);
+            player.room.FireSmoke().Emit(player.Hand(hand).pos, new Vector2(0, 0.5f), LavaColor.rgb, 10);
         }
     }
 
@@ -342,9 +360,12 @@ static class HeatHooks
     {
         if (crit is not Player && crit.grasps != null) {
             foreach (var grasp in crit.grasps) {
-                if (grasp?.grabbed != null && RngChance(grasp.grabbed.Temperature() * 0.1f)) {
-                    crit.ReleaseGrasp(grasp.graspUsed);
-                    crit.abstractCreature.AvoidsHeat() = true;
+                if (grasp?.grabbed != null && grasp.grabbed.Temperature() > 0.1f) {
+                    bool chance = RngChance(grasp.grabbed.Temperature() * grasp.grabbed.Temperature());
+                    if (chance) {
+                        crit.ReleaseGrasp(grasp.graspUsed);
+                        crit.abstractCreature.AvoidsHeat() = true;
+                    }
                 }
             }
         }
@@ -357,7 +378,7 @@ static class HeatHooks
 
         float temp = crit.Temperature();
 
-        if (temp > 0.05f) {
+        if (temp > 0.1f) {
             BurnCrit(crit, temp);
         }
 
@@ -365,7 +386,7 @@ static class HeatHooks
         {
             // Stun creatures
             if (RngChance(0.06f)) {
-                int stunTime = (int)Mathf.Lerp(2, 25 * crit.Template.baseStunResistance, temp * temp);
+                int stunTime = (int)Mathf.Lerp(2, 10 * crit.Template.baseStunResistance, temp * temp);
 
                 crit.Stun(stunTime);
 
@@ -375,7 +396,7 @@ static class HeatHooks
             }
 
             // Stun bonus is negative to prevent any stunning at all.
-            float damage = temp / 40f;
+            float damage = temp / 80f;
             float stunBonus = damage * -30;
 
             // We're using explosion damage as a stand-in for fire damage. This ignores explosion damage resistance.
@@ -385,17 +406,14 @@ static class HeatHooks
 
             BodyChunk chunk = crit.bodyChunks.RandomElement();
 
-            bool critWasDead = crit.dead;
-
             crit.Violence(null, null, chunk, null, Creature.DamageType.Explosion, damage, stunBonus);
 
             var burningGrasp = crit.grabbedBy.FirstOrDefault(g => g.grabber.Temperature() > temp);
             if (burningGrasp != null) {
-                if (crit.dead && !critWasDead) {
-                    crit.room.socialEventRecognizer.Killing(burningGrasp.grabber, crit);
-                }
-                else if (RngChance(1 / 80f)) {
-                    crit.room.socialEventRecognizer.SocialEvent(SocialEventRecognizer.EventID.NonLethalAttack, burningGrasp.grabber, crit, null);
+                crit.SetKillTag(burningGrasp.grabber.abstractCreature);
+
+                if (crit.State.alive && RngChance(1 / 80f)) {
+                    crit.room.socialEventRecognizer.SocialEvent(SocialEventRecognizer.EventID.LethalAttackAttempt, burningGrasp.grabber, crit, null);
 
                     (burningGrasp.grabber as Player)?.SessionRecord?.BreakPeaceful(crit);
                 }
@@ -418,9 +436,17 @@ static class HeatHooks
         if (tracked.owner.AI.creature.AvoidsHeat()) {
             float temp = tracked.critRep.representedCreature.Temperature();
 
-            return orig(tracked) * (1f - temp * temp);
+            return Mathf.Lerp(orig(tracked), 0, temp * 0.9f);
         }
         return orig(tracked);
+    }
+
+    private static int ScavengerAI_CollectScore_PhysicalObject_bool(On.ScavengerAI.orig_CollectScore_PhysicalObject_bool orig, ScavengerAI self, PhysicalObject obj, bool weaponFiltered)
+    {
+        if (self.creature.AvoidsHeat() && obj.Temperature() > 0.1f) {
+            return 0;
+        }
+        return orig(self, obj, weaponFiltered);
     }
 
     // -- Specific behavior --
@@ -479,7 +505,7 @@ static class HeatHooks
 
         // Smoky tip
         if (temp > 0.1f && FireParticleChance(temp)) {
-            Color fireColor = Plugin.LavaColor.rgb * temp * temp;
+            Color fireColor = LavaColor.rgb * temp * temp;
 
             spear.WispySmoke().Emit(spear.firstChunk.pos + spear.rotation * halfLength, new Vector2(0, 0.5f), fireColor);
         }
@@ -528,6 +554,85 @@ static class HeatHooks
             sLeaser.sprites[1].color = color.rgb;
         }
     }
+
+    // Flarebombs
+
+    static FlareBomb blinding;
+    private static void FlareBomb_Update(On.FlareBomb.orig_Update orig, FlareBomb self, bool eu)
+    {
+        self.color = Color.Lerp(new Color(0.2f, 0, 1), LavaColor.rgb, Mathf.Sqrt(self.Temperature()));
+
+        blinding = self;
+        try { orig(self, eu); }
+        finally { blinding = null; }
+    }
+
+    private static void FlareBomb_DrawSprites(On.FlareBomb.orig_DrawSprites orig, FlareBomb self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
+    {
+        orig(self, sLeaser, rCam, timeStacker, camPos);
+
+        self.ApplyPalette(sLeaser, rCam, rCam.currentPalette);
+    }
+
+    private static void Creature_Blind(On.Creature.orig_Blind orig, Creature self, int blnd)
+    {
+        if (blinding != null) {
+            if (blinding.Temperature() > 0.5f) {
+                self.Stun(blnd / 3);
+            }
+
+            blnd += (int)(blnd * blinding.Temperature());
+        }
+
+        orig(self, blnd);
+    }
+
+    // Pearls
+
+    private static void DataPearl_ApplyPalette(On.DataPearl.orig_ApplyPalette orig, DataPearl self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, RoomPalette palette)
+    {
+        orig(self, sLeaser, rCam, palette);
+
+        if (self.AbstractPearl.dataPearlType == BurntPearl) {
+            self.color = DataPearl.UniquePearlMainColor(BurntPearl);
+            self.highlightColor = DataPearl.UniquePearlHighLightColor(BurntPearl);
+        }
+    }
+
+    private static Color DataPearl_UniquePearlMainColor(On.DataPearl.orig_UniquePearlMainColor orig, DataPearl.AbstractDataPearl.DataPearlType pearlType)
+    {
+        return pearlType == BurntPearl ? new(0.2f, 0.2f, 0.2f) : orig(pearlType);
+    }
+
+    private static Color? DataPearl_UniquePearlHighLightColor(On.DataPearl.orig_UniquePearlHighLightColor orig, DataPearl.AbstractDataPearl.DataPearlType pearlType)
+    {
+        return pearlType == BurntPearl ? new(0.2f, 0.2f, 0.2f) : orig(pearlType);
+    }
+
+    private static void DataPearl_DrawSprites(On.DataPearl.orig_DrawSprites orig, DataPearl self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
+    {
+        if (self.AbstractPearl.dataPearlType == BurntPearl) {
+            self.glimmer = self.lastGlimmer = 0;
+        }
+
+        orig(self, sLeaser, rCam, timeStacker, camPos);
+
+        float percent = self.Temperature() / 0.6f;
+
+        Color color = (LavaColor with { lightness = 0.9f }).rgb;
+
+        sLeaser.sprites[0].color = Color.Lerp(sLeaser.sprites[0].color, color, percent);
+        sLeaser.sprites[1].color = Color.Lerp(sLeaser.sprites[1].color, color, percent);
+        sLeaser.sprites[2].color = Color.Lerp(sLeaser.sprites[2].color, Color.white, percent);
+
+        if (self.AbstractPearl.dataPearlType != BurntPearl && self.Temperature() > 0.7f) {
+            // Erase pearl data if too hot
+            self.AbstractPearl.dataPearlType = BurntPearl;
+            self.ApplyPalette(sLeaser, rCam, rCam.currentPalette);
+        }
+    }
+
+    // Explosives
 
     private static void FirecrackerPlant_Update(On.FirecrackerPlant.orig_Update orig, FirecrackerPlant self, bool eu)
     {
