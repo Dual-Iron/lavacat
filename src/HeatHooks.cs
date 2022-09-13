@@ -100,6 +100,7 @@ static class HeatHooks
             Player p => Inedible(p.IsLavaCat() ? 0.01f : 0.10f),
             DataPearl => Inedible(0.07f),
             Creature => Inedible(0.07f),
+            SeedCob => Inedible(0.05f),
             _ => Inedible(0.025f),
         };
     }
@@ -342,8 +343,7 @@ static class HeatHooks
                 crit.SetKillTag(otherCrit.abstractCreature);
 
                 float difference = otherCrit.Temperature() - crit.Temperature();
-                Plugin.Logger.LogInfo(difference);
-                if (RngChance(difference / 60f)) {
+                if (RngChance(difference / 30f)) {
                     crit.room.socialEventRecognizer.SocialEvent(SocialEventRecognizer.EventID.LethalAttackAttempt, otherCrit, crit, null);
                 }
             }
@@ -451,14 +451,18 @@ static class HeatHooks
 
             crit.Violence(null, null, chunk, null, Creature.DamageType.Explosion, damage, stunBonus);
 
-            var burningGrasp = crit.grabbedBy.FirstOrDefault(g => g.grabber.Temperature() > temp);
-            if (burningGrasp != null) {
-                crit.SetKillTag(burningGrasp.grabber.abstractCreature);
+            foreach (var grasp in crit.grabbedBy) {
+                if (grasp.grabber.Temperature() > crit.Temperature()) {
+                    var grabber = grasp.grabber;
 
-                if (crit.State.alive && RngChance(1 / 40f)) {
-                    crit.room.socialEventRecognizer.SocialEvent(SocialEventRecognizer.EventID.LethalAttackAttempt, burningGrasp.grabber, crit, null);
+                    crit.SetKillTag(grabber.abstractCreature);
 
-                    (burningGrasp.grabber as Player)?.SessionRecord?.BreakPeaceful(crit);
+                    float difference = grabber.Temperature() - crit.Temperature();
+                    if (crit.State.alive && RngChance(difference / 20f)) {
+                        crit.room.socialEventRecognizer.SocialEvent(SocialEventRecognizer.EventID.LethalAttackAttempt, grabber, crit, null);
+
+                        (grabber as Player)?.SessionRecord?.BreakPeaceful(crit);
+                    }
                 }
             }
         }
@@ -694,19 +698,16 @@ static class HeatHooks
         if (temp > 0) {
             nest.angry = Mathf.Clamp01(nest.angry - temp);
         }
-        if (temp > 0.2f) {
-            nest.Pacified = true;
+        if (temp > 0.2f && RngChance(temp * temp)) {
+            var pos = nest.firstChunk.pos + nest.firstChunk.rad * Random.insideUnitCircle * 0.5f;
+            var left = Custom.RotateAroundOrigo(nest.rotation, -1 * Rng(80, 100));
+            var right = Custom.RotateAroundOrigo(nest.rotation, 1 * Rng(80, 100));
 
-            if (RngChance(temp * temp)) {
-                var pos = nest.firstChunk.pos + nest.firstChunk.rad * Random.insideUnitCircle * 0.5f;
-                var left = Custom.RotateAroundOrigo(nest.rotation, -1 * Rng(80, 100));
-                var right = Custom.RotateAroundOrigo(nest.rotation, 1 * Rng(80, 100));
-
-                nest.WispySmoke(0).Emit(pos, left * Rng(1, 3 * temp), LavaColor.rgb);
-                nest.WispySmoke(1).Emit(pos, right * Rng(1, 3 * temp), LavaColor.rgb);
-            }
+            nest.WispySmoke(0).Emit(pos, left * Rng(1, 3 * temp), LavaColor.rgb);
+            nest.WispySmoke(1).Emit(pos, right * Rng(1, 3 * temp), LavaColor.rgb);
         }
         if (temp > 0.6f && RngChance(0.05f)) {
+            nest.Pacified = true;
             nest.room.PlaySound(SoundID.Firecracker_Burn, nest.firstChunk.pos, 0.15f, 1.4f);
         }
         if (temp > 0.7f) {
@@ -812,61 +813,57 @@ static class HeatHooks
     {
         orig(cob, eu);
 
+        return;
+
         // Burn seed cobs for a large amount of heat
-        if (!cob.AbstractCob.dead && cob.open > 0.95f) {
+        ref float temp = ref cob.Temperature();
+
+        if (!cob.AbstractCob.dead && cob.open > 0.95f && cob.SeedBurns().All(f => f <= 0)) {
             foreach (var player in cob.room.game.Players) {
-                if (player.realizedObject is Player p && p.IsLavaCat() && p.room == cob.room) {
-                    Vector2 closest = Custom.ClosestPointOnLineSegment(cob.bodyChunks[0].pos, cob.bodyChunks[1].pos, p.firstChunk.pos);
-                    int freeHand = p.FreeHand();
-                    if (freeHand != -1 && (closest - p.firstChunk.pos).MagnitudeLt(25)) {
-                        p.handOnExternalFoodSource = closest;
+                if (player.realizedObject is not Player p || !p.IsLavaCat() || p.room != cob.room) {
+                    continue;
+                }
 
-                        p.Blink(5);
-                        p.BlindTimer() = 10;
+                Vector2 closest = Custom.ClosestPointOnLineSegment(cob.bodyChunks[0].pos, cob.bodyChunks[1].pos, p.firstChunk.pos);
+                int freeHand = p.FreeHand();
+                if (freeHand > -1 && (closest - p.firstChunk.pos).MagnitudeLt(35)) {
+                    p.handOnExternalFoodSource = closest;
 
-                        p.WispySmoke(freeHand).Emit(p.Hand(freeHand).pos, new Vector2(0, 0.5f), LavaColor.rgb);
+                    p.Blink(5);
+                    p.BlindTimer() = 10;
 
-                        // Show food bar for food items
-                        Equalize(p, cob, 0.1f);
-
-                        cob.Temperature() += 1 / 5 / 40f;
-                        break;
+                    if (p.room.game.cameras[0].hud.foodMeter != null) {
+                        p.room.game.cameras[0].hud.foodMeter.visibleCounter = 60;
                     }
+
+                    temp += 0.2f / 120f;
+
+                    if (temp > 0.2f && RngChance(temp * temp * 0.5f)) {
+                        var seed = cob.seedPositions.OrderByDescending(v => (v - closest).sqrMagnitude).Enumerate().First();
+
+                        cob.SeedBurns()[seed.Index] += 0.01f;
+                    }
+
+                    break;
                 }
             }
         }
 
-        if (cob.Temperature() > 0.1f) {
-            if (RngChance(cob.Temperature())) {
-                cob.room.FireSmoke().Emit(cob.firstChunk.pos, new Vector2(0, 0.5f) + Custom.RNV(), LavaColor.rgb, 10);
-            }
+        if (temp > 0.08f) {
+            cob.WispySmoke(0).Emit(cob.firstChunk.pos, new Vector2(0, 1), LavaColor.rgb);
         }
 
-        if (cob.Temperature() > 0.2f) {
-            cob.Temperature() += 0.01f * Mathf.Max(0, 0.8f - cob.Burn());
+        Burn(cob, ref temp);
+    }
 
-            // TODO fire and smoke vfx, heat up nearby entities
+    private static void Burn(SeedCob cob, ref float temp)
+    {
+        for (int i = 0; i < cob.seedPositions.Length; i++) {
+            ref float burn = ref cob.SeedBurns()[i];
 
-            // Heat up nearby objects
-            foreach (var obj in cob.room.physicalObjects[cob.collisionLayer]) {
-                foreach (var chunk in obj.bodyChunks) {
-                    float dist = Vector2.Distance(chunk.pos, cob.firstChunk.pos);
-                    if (dist < 50) {
-                        Equalize(cob, obj, 0.2f * Mathf.InverseLerp(50, 0, dist));
-                    }
-                }
-            }
-
-            // Burning
-            if (cob.Burn() < 1f) {
-                cob.Burn() += 1 / (40 * 10);
-
-                if (cob.Burn() > 0.5f) {
-                    var consumed = cob.room.world.regionState.consumedItems.FirstOrDefault(c => c.placedObjectIndex == cob.AbstractCob.placedObjectIndex);
-                    if (consumed != null) {
-                        consumed.waitCycles += 15;
-                    }
-                }
+            if (burn > 0 && burn < 1) {
+                burn += 1 / 80f;
+                burn = Mathf.Clamp01(burn);
             }
         }
     }

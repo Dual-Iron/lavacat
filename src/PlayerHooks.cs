@@ -20,6 +20,7 @@ static class PlayerHooks
         On.HUD.FoodMeter.ctor += FoodMeter_ctor;
         On.HUD.FoodMeter.Update += FoodMeter_Update;
 
+        On.Room.AddObject += Room_AddObject;
         On.Player.Update += Player_Update;
 
         // Player doesn't really take damage while hot
@@ -62,7 +63,7 @@ static class PlayerHooks
 
         if (Plugin.Character.IsMe(world.game)) {
             // Sleep in for 2-5 cycle pips
-            self.timer += (int)(Rng(2f, 5f) * 30 * 40);
+            self.timer += (int)(Rng(1f, 4f) * 30 * 40);
         }
     }
 
@@ -136,51 +137,64 @@ static class PlayerHooks
         orig(foodMeter);
     }
 
+    // -- Player updates --
+
+    private static void Room_AddObject(On.Room.orig_AddObject orig, Room self, UpdatableAndDeletable obj)
+    {
+        if (allowWaterDrips || obj is not WaterDrip) {
+            orig(self, obj);
+        }
+    }
+
+    static bool allowWaterDrips = true;
     private static void Player_Update(On.Player.orig_Update orig, Player player, bool eu)
     {
-        if (player.IsLavaCat()) {
-            player.Template.canSwim = false;
+        if (!player.IsLavaCat()) {
+            orig(player, eu);
+            return;
         }
+
+        allowWaterDrips = false;
+        player.Template.canSwim = false;
 
         try {
             orig(player, eu);
         }
         finally {
+            allowWaterDrips = true;
             player.Template.canSwim = true;
         }
 
-        if (player.IsLavaCat()) {            
-            ref float temperature = ref player.Temperature();
+        ref float temperature = ref player.Temperature();
 
-            if (player.abstractCreature.world.game.IsStorySession) {
-                player.playerState.foodInStomach = FloorToInt(player.MaxFoodInStomach * Clamp01(temperature));
-            }
-
-            player.eatExternalFoodSourceCounter = 20;
-            player.dontEatExternalFoodSourceCounter = 20;
-
-            if (player.handOnExternalFoodSource is Vector2 v && (player.firstChunk.pos - v).MagnitudeGt(30)) {
-                player.handOnExternalFoodSource = null;
-            }
-
-            // If too hot, cool down quickly
-            if (temperature > 1) {
-                temperature = Max(temperature * 0.995f, 1);
-            }
-
-            if (player.Malnourished && temperature > 0.9f) {
-                player.SetMalnourished(false);
-            }
-
-            player.waterFriction = Lerp(0.96f, 0.8f, temperature);
-            player.buoyancy = Lerp(0.3f, 1.1f, temperature);
-
-            // This cat doesn't breathe.
-            player.airInLungs = 1f;
-            player.aerobicLevel = 0f;
-
-            UpdateStats(player, temperature);
+        if (player.abstractCreature.world.game.IsStorySession) {
+            player.playerState.foodInStomach = FloorToInt(player.MaxFoodInStomach * Clamp01(temperature));
         }
+
+        player.eatExternalFoodSourceCounter = 20;
+        player.dontEatExternalFoodSourceCounter = 20;
+
+        if (player.handOnExternalFoodSource is Vector2 v && (player.firstChunk.pos - v).MagnitudeGt(35)) {
+            player.handOnExternalFoodSource = null;
+        }
+
+        // If too hot, cool down quickly
+        if (temperature > 1) {
+            temperature = Max(temperature * 0.995f, 1);
+        }
+
+        if (player.Malnourished && temperature > 0.9f) {
+            player.SetMalnourished(false);
+        }
+
+        player.waterFriction = Lerp(0.96f, 0.8f, temperature);
+        player.buoyancy = Lerp(0.3f, 1.1f, temperature);
+
+        // This cat doesn't breathe.
+        player.airInLungs = 1f;
+        player.aerobicLevel = 0f;
+
+        UpdateStats(player, temperature);
 
         static void UpdateStats(Player player, float temperature)
         {
@@ -208,7 +222,7 @@ static class PlayerHooks
     private static void Creature_Violence(On.Creature.orig_Violence orig, Creature crit, BodyChunk source, Vector2? directionAndMomentum, BodyChunk hitChunk, PhysicalObject.Appendage.Pos hitAppendage, Creature.DamageType type, float damage, float stunBonus)
     {
         if (crit is Player p && p.IsLavaCat()) {
-            p.Temperature() -= damage * 0.05f;
+            float damageOriginal = damage;
 
             if (p.Temperature() > 0.5f) {
                 float reduction = p.Temperature() * 0.6f;
@@ -216,6 +230,9 @@ static class PlayerHooks
                 stunBonus *= 1 - reduction;
             }
 
+            p.Temperature() -= damageOriginal * 0.1f;
+
+            // bday
             for (int i = 0; i < 30 + 50 * damage + 0.5f * stunBonus; i++) {
                 Vector2 pos = hitChunk.pos + Random.insideUnitCircle * hitChunk.rad * 0.5f;
                 p.room.AddObject(new MysteriousDust() {
@@ -234,10 +251,6 @@ static class PlayerHooks
     private static void Creature_TerrainImpact(On.Creature.orig_TerrainImpact orig, Creature self, int chunk, RWCustom.IntVector2 direction, float speed, bool firstContact)
     {
         if (self is Player p && p.IsLavaCat()) {
-            // Remove any water droplets that spawn during this method call
-            var objects = self.room.updateList;
-            self.room.updateList = new();
-
             // Prevent dying from big heights
             bool invul = self.room.game.rainWorld.setup.invincibility;
             self.room.game.rainWorld.setup.invincibility = true;
@@ -245,10 +258,6 @@ static class PlayerHooks
             orig(self, chunk, direction, speed, firstContact);
 
             self.room.game.rainWorld.setup.invincibility = invul;
-
-            self.room.updateList.RemoveAll(u => u is WaterDrip);
-            objects.AddRange(self.room.updateList);
-            self.room.updateList = objects;
         }
         else {
             orig(self, chunk, direction, speed, firstContact);

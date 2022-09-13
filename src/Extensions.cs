@@ -1,4 +1,6 @@
-﻿using SlugBase;
+﻿using RWCustom;
+using SlugBase;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -13,6 +15,7 @@ static class Extensions
     public static readonly HSLColor LavaColor = new(0.10f, 1.00f, 0.60f);
 
     // -- Lava cat --
+
     public static bool IsLavaCat(this Player player) => Plugin.Character.IsMe(player);
 
     public static Color SkinColor(this Player player) => player.SkinColor(player.Temperature());
@@ -106,6 +109,33 @@ static class Extensions
     public static SlugcatHand Hand(this Player p, Creature.Grasp grasp) => p.Graf().hands[grasp.graspUsed];
     public static SlugcatHand Hand(this Player p, int grasp) => p.Graf().hands[grasp];
 
+    public static Vector2 SeedWorldPos(this SeedCob cob, int seed)
+    {
+        // 0=root, 1=tip
+        Vector2 root = cob.bodyChunks[0].pos;
+        Vector2 tip = cob.bodyChunks[1].pos;
+        Vector2 toRoot = (root - tip).normalized;
+        Vector2 perpToRoot = Custom.PerpendicularVector(toRoot);
+
+        return tip + toRoot * cob.seedPositions[seed].y * (Vector2.Distance(tip, root) - 10f) + perpToRoot * cob.seedPositions[seed].x * 3f;
+    }
+
+    public static Vector2 SeedWorldCenter(this SeedCob cob, int seed)
+    {
+        // 0=root, 1=tip
+        Vector2 pos = cob.SeedWorldPos(seed);
+
+        Vector2 root = cob.bodyChunks[0].pos;
+        Vector2 tip = cob.bodyChunks[1].pos;
+        Vector2 toRoot = (root - tip).normalized;
+        Vector2 perpToRoot = Custom.PerpendicularVector(toRoot);
+
+        float offset = 1f + Mathf.Sin(Mathf.PI * seed / cob.seedPositions.Length - 1);
+        float offsetDir = Mathf.Sign(cob.seedPositions[seed].x);
+
+        return pos + perpToRoot * Mathf.Pow(Mathf.Abs(cob.seedPositions[seed].x), Custom.LerpMap(offset, 1f, 2f, 1f, 0.5f)) * offsetDir * offset * 3.5f;
+    }
+
     public static void ReduceFood(this Player player, bool allowMalnourishment = true)
     {
         var foodHud = player.room.game.cameras[0].hud.foodMeter;
@@ -135,4 +165,18 @@ static class Extensions
             foodHud.survivalLimit = player.slugcatStats.maxFood;
         }
     }
+
+    public static IEnumerable<Indexed<T>> Enumerate<T>(this IEnumerable<T> source)
+    {
+        int i = -1;
+        foreach (var item in source) {
+            yield return new Indexed<T> { Value = item, Index = ++i };
+        }
+    }
+}
+
+public struct Indexed<T>
+{
+    public T Value;
+    public int Index;
 }

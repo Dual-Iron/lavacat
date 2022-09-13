@@ -6,6 +6,33 @@ using static LavaCat.Extensions;
 
 namespace LavaCat;
 
+sealed class LavaFireSprite : HolyFire.HolyFireSprite
+{
+    private readonly bool foreground;
+
+    public LavaFireSprite(Vector2 pos, bool foreground = false) : base(pos)
+    {
+        this.foreground = foreground;
+    }
+
+    public override void AddToContainer(RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, FContainer newContainer)
+    {
+        if (foreground) {
+            newContainer ??= rCam.ReturnFContainer("Items");
+        }
+
+        base.AddToContainer(sLeaser, rCam, newContainer);
+
+        // Fire should render behind the player
+        if (foreground) {
+            sLeaser.sprites[0].MoveToFront();
+        }
+        else {
+            sLeaser.sprites[0].MoveToBack();
+        }
+    }
+}
+
 sealed class MysteriousDust : CosmeticSprite
 {
     const float Intensity = 1;
@@ -164,17 +191,20 @@ sealed class WispySmoke : MeshSmoke
 
 sealed class FireSmokeFixed : SmokeSystem
 {
+    bool foreground;
+
     public FireSmokeFixed(Room room) : base(SmokeType.FireSmoke, room, 2, 0f)
     {
     }
 
     public override SmokeSystemParticle CreateParticle()
     {
-        return new FireSmokeParticle();
+        return new FireSmokeParticle() { foreground = foreground };
     }
 
-    public void Emit(Vector2 pos, Vector2 vel, Color effectColor, int colorFadeTime)
+    public void Emit(Vector2 pos, Vector2 vel, Color effectColor, int colorFadeTime, bool foreground = false)
     {
+        this.foreground = foreground;
         if (AddParticle(pos, vel, Lerp(10f, 40f, Random.value)) is FireSmokeParticle particle) {
             particle.effectColor = effectColor;
             particle.colorFadeTime = colorFadeTime;
@@ -183,6 +213,8 @@ sealed class FireSmokeFixed : SmokeSystem
 
     sealed class FireSmokeParticle : SpriteSmoke
     {
+        public bool foreground;
+
         public override void Reset(SmokeSystem newOwner, Vector2 pos, Vector2 vel, float lifeTime)
         {
             base.Reset(newOwner, pos, vel, lifeTime);
@@ -260,6 +292,21 @@ sealed class FireSmokeFixed : SmokeSystem
         public override void ApplyPalette(RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, RoomPalette palette)
         {
             colorA = Color.Lerp(palette.blackColor, palette.fogColor, 0.2f);
+        }
+
+        public override void AddToContainer(RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, FContainer newContainer)
+        {
+            if (foreground) {
+                newContainer ??= rCam.ReturnFContainer("Items");
+            }
+
+            base.AddToContainer(sLeaser, rCam, newContainer);
+
+            if (foreground) {
+                foreach (var sprite in sLeaser.sprites) {
+                    sprite.MoveToFront();
+                }
+            }
         }
 
         public Color effectColor;
