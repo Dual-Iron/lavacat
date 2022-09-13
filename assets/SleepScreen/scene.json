@@ -10,31 +10,31 @@
       "name": "1 - BGGrass.png",
       "x": 668,
       "y": 106,
-      "depth": 2.8
+      "depth": 2.5
     },
     {
       "name": "2 - BGGrass.png",
       "x": 704,
       "y": 120,
-      "depth": 2.7
+      "depth": 2.4
     },
     {
       "name": "3 - BGGrass.png",
       "x": 738,
       "y": 152,
-      "depth": 2.6
+      "depth": 2.3
     },
     {
       "name": "4 - FGGrass.png",
       "x": 744,
       "y": 112,
-      "depth": 2.5
+      "depth": 2.1
     },
     {
       "name": "5 - Cat.png",
       "x": 744,
       "y": 116,
-      "depth": 2.4
+      "depth": 2.0
     },
     {
       "name": "Flat.png",
@@ -45,8 +45,8 @@
     }
   ],
   "idledepths": [
-    2.3,
-    2.7
+    2.0,
+    2.3
   ],
   "markx": 700,
   "marky": 600,

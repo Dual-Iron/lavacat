@@ -1,4 +1,4 @@
-﻿using SlugBase;
+﻿using System.Linq;
 using UnityEngine;
 using static LavaCat.Extensions;
 using static UnityEngine.Mathf;
@@ -76,11 +76,15 @@ static class PlayerHooks
         orig(self, manager);
 
         foreach (var player in self.Players) {
-            if (player?.state is PlayerState state) {
-                float temperature = state.foodInStomach / (float)SlugcatStats.SlugcatFoodMeter(Plugin.Character.SlugcatIndex).x;
-
-                player.Temperature() = temperature;
+            int food = 0;
+            if (self.session is StoryGameSession session) {
+                food = session.saveState.food;
             }
+            else if (player?.state is PlayerState state) {
+                food = state.foodInStomach;
+            }
+
+            player.Temperature() = (float)(food / (float)SlugcatStats.SlugcatFoodMeter(Plugin.Character.SlugcatIndex).x);
         }
     }
 
@@ -152,8 +156,11 @@ static class PlayerHooks
                 player.playerState.foodInStomach = FloorToInt(player.MaxFoodInStomach * Clamp01(temperature));
             }
 
-            if (player.eatExternalFoodSourceCounter < 10) {
-                player.eatExternalFoodSourceCounter = 10;
+            player.eatExternalFoodSourceCounter = 20;
+            player.dontEatExternalFoodSourceCounter = 20;
+
+            if (player.handOnExternalFoodSource is Vector2 v && (player.firstChunk.pos - v).MagnitudeGt(30)) {
+                player.handOnExternalFoodSource = null;
             }
 
             // If too hot, cool down quickly

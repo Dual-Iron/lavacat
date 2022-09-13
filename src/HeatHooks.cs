@@ -1,6 +1,4 @@
-﻿using Mono.Cecil.Cil;
-using MonoMod.Cil;
-using RWCustom;
+﻿using RWCustom;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -16,54 +14,6 @@ struct HeatProperties
 
 static class HeatHooks
 {
-    public static void Apply()
-    {
-        // Let player heat objects up
-        IL.Player.GrabUpdate += Player_GrabUpdate;
-
-        // Special behavior for heated objects
-        On.PhysicalObject.Collide += PhysicalObject_Collide;
-        On.PhysicalObject.Update += PhysicalObject_Update;
-        On.SeedCob.Update += SeedCob_Update;
-
-        On.Creature.Update += Creature_Update;
-        On.PreyTracker.TrackedPrey.Attractiveness += TrackedPrey_Attractiveness;
-        On.ScavengerAI.CollectScore_PhysicalObject_bool += ScavengerAI_CollectScore_PhysicalObject_bool;
-
-        On.Fly.Update += Fly_Update;
-
-        On.Spear.HitSomething += Spear_HitSomething;
-        On.Spear.Update += Spear_Update;
-        On.Spear.DrawSprites += Spear_DrawSprites;
-
-        On.Rock.HitSomething += Rock_HitSomething;
-        On.Rock.Update += Rock_Update;
-        On.Rock.DrawSprites += Rock_DrawSprites;
-
-        On.Lantern.Update += Lantern_Update;
-        On.Lantern.DrawSprites += Lantern_DrawSprites;
-
-        On.FlareBomb.Update += FlareBomb_Update;
-        On.FlareBomb.DrawSprites += FlareBomb_DrawSprites;
-        On.Creature.Blind += Creature_Blind;
-
-        On.PuffBall.Update += PuffBall_Update;
-        On.PuffBall.DrawSprites += PuffBall_DrawSprites;
-
-        On.SporePlant.Update += SporePlant_Update;
-
-        On.DataPearl.ApplyPalette += DataPearl_ApplyPalette;
-        On.DataPearl.UniquePearlMainColor += DataPearl_UniquePearlMainColor;
-        On.DataPearl.UniquePearlHighLightColor += DataPearl_UniquePearlHighLightColor;
-        On.DataPearl.DrawSprites += DataPearl_DrawSprites;
-
-        On.FirecrackerPlant.Update += FirecrackerPlant_Update;
-        On.ExplosiveSpear.Update += ExplosiveSpear_Update;
-        On.ScavengerBomb.Update += ScavengerBomb_Update;
-
-        // TODO make misc objects start smoking when hot
-    }
-
     private static bool FireParticleChance(float temp)
     {
         return RngChance(0.50f * temp * temp);
@@ -170,34 +120,90 @@ static class HeatHooks
             other.Temperature() -= heatFlow * conductivity * speed * (1 - massRatio);
     }
 
-
-    private static void Player_GrabUpdate(ILContext il)
+    public static void Apply()
     {
-        ILCursor cursor = new(il);
+        // Let player heat objects up
+        On.Player.GrabUpdate += Player_GrabUpdate;
+        On.Player.ReleaseObject += Player_ReleaseObject;
 
-        cursor.GotoNext(MoveType.Before, i => i.MatchLdcI4(0) && i.Next.MatchStloc(0));
-        cursor.Index += 2;
+        // Special behavior for heated objects
+        On.PhysicalObject.Collide += PhysicalObject_Collide;
+        On.PhysicalObject.Update += PhysicalObject_Update;
 
-        // Overwrite num0, which decides if the player should eat/swallow or not
-        cursor.Emit(OpCodes.Ldarg_0);
-        cursor.Emit(OpCodes.Ldloca, il.Body.Variables[0]);
-        cursor.EmitDelegate(EatFoodHook);
+        On.Creature.Update += Creature_Update;
+        On.PreyTracker.TrackedPrey.Attractiveness += TrackedPrey_Attractiveness;
+        On.ScavengerAI.CollectScore_PhysicalObject_bool += ScavengerAI_CollectScore_PhysicalObject_bool;
 
-        cursor.GotoNext(MoveType.Before, i => i.MatchCall<Player>("HeavyCarry"));
-        cursor.GotoNext(MoveType.Before, i => i.MatchStloc(out _));
+        On.Fly.Update += Fly_Update;
 
-        // Prevent lavacat from dropping critters when trying to overheat them to death
-        cursor.Emit(OpCodes.Ldarg_0);
-        cursor.EmitDelegate(ReleaseHeavyObjectHook);
+        On.Spear.HitSomething += Spear_HitSomething;
+        On.Spear.Update += Spear_Update;
+        On.Spear.DrawSprites += Spear_DrawSprites;
+
+        On.Rock.HitSomething += Rock_HitSomething;
+        On.Rock.Update += Rock_Update;
+        On.Rock.DrawSprites += Rock_DrawSprites;
+
+        On.Lantern.Update += Lantern_Update;
+        On.Lantern.DrawSprites += Lantern_DrawSprites;
+
+        On.FlareBomb.Update += FlareBomb_Update;
+        On.FlareBomb.DrawSprites += FlareBomb_DrawSprites;
+        On.Creature.Blind += Creature_Blind;
+
+        On.PuffBall.Update += PuffBall_Update;
+        On.PuffBall.DrawSprites += PuffBall_DrawSprites;
+
+        On.SporePlant.Update += SporePlant_Update;
+
+        On.DataPearl.ApplyPalette += DataPearl_ApplyPalette;
+        On.DataPearl.UniquePearlMainColor += DataPearl_UniquePearlMainColor;
+        On.DataPearl.UniquePearlHighLightColor += DataPearl_UniquePearlHighLightColor;
+        On.DataPearl.DrawSprites += DataPearl_DrawSprites;
+
+        On.FirecrackerPlant.Update += FirecrackerPlant_Update;
+        On.ExplosiveSpear.Update += ExplosiveSpear_Update;
+        On.ScavengerBomb.Update += ScavengerBomb_Update;
+
+        On.SeedCob.Update += SeedCob_Update;
+        On.SeedCob.DrawSprites += SeedCob_DrawSprites;
+
+        // TODO make misc objects start smoking when hot
     }
 
-    private static void EatFoodHook(Player player, ref bool result)
+    // Fix grab update
+    static bool grabUpdate;
+    private static void Player_GrabUpdate(On.Player.orig_GrabUpdate orig, Player self, bool eu)
+    {
+        bool jmp = self.input[0].jmp;
+
+        if (self.IsLavaCat()) {
+            self.input[0].jmp = true;
+            grabUpdate = true;
+        }
+
+        try {
+            orig(self, eu);
+        } finally {
+            grabUpdate = false;
+            self.input[0].jmp = jmp;
+        }
+
+        GrabUpdate(self);
+    }
+
+    private static void Player_ReleaseObject(On.Player.orig_ReleaseObject orig, Player self, int grasp, bool eu)
+    {
+        if (grabUpdate && self.input[0].y > -1 && self.grasps[grasp]?.grabbed is PhysicalObject o && self.HeavyCarry(o)) {
+            return;
+        }
+        orig(self, grasp, eu);
+    }
+
+    private static void GrabUpdate(Player player)
     {
         if (player.IsLavaCat()) {
-            bool heat = result;
-
-            result = false;
-
+            bool heat = player.input[0].x == 0 && player.input[0].y == 0 && !player.input[0].jmp && !player.input[0].thrw;
             if (heat && player.input[0].pckp && player.Submersion <= 0) {
                 foreach (var grasp in player.grasps) {
                     if (grasp?.grabbed is PhysicalObject o && CanHeat(player, o)) {
@@ -369,40 +375,6 @@ static class HeatHooks
         }
 
         UpdateWaterCollision(self);
-    }
-
-    private static void SeedCob_Update(On.SeedCob.orig_Update orig, SeedCob cob, bool eu)
-    {
-        orig(cob, eu);
-
-        // Burn seed cobs for a large amount of heat
-        if (!cob.AbstractCob.dead && cob.open > 0.95f) {
-            foreach (var player in cob.room.game.Players) {
-                if (player.realizedObject is Player p && p.IsLavaCat() && p.room == cob.room && p.eatExternalFoodSourceCounter <= 10 && p.Temperature() < 0.9f) {
-                    int freeHand = p.FreeHand();
-                    if (freeHand != -1) {
-                        Burn(p, cob, freeHand);
-                        break;
-                    }
-                }
-            }
-        }
-
-        static void Burn(Player player, SeedCob cob, int hand)
-        {
-            player.Blink(5);
-            player.Graf().objectLooker.LookAtNothing();
-
-            int particleCount = (int)Rng(0, cob.Temperature() * cob.Temperature() * 10);
-            for (int i = 0; i < particleCount; i++) {
-                LavaFireSprite particle = new(cob.seedPositions.RandomElement(), foreground: RngChance(0.50f));
-                particle.vel.x *= 0.5f;
-                particle.vel.y *= 1.5f;
-                player.room.AddObject(particle);
-            }
-
-            player.room.FireSmoke().Emit(player.Hand(hand).pos, new Vector2(0, 0.5f), LavaColor.rgb, 10);
-        }
     }
 
     // Burning creatures
@@ -799,5 +771,77 @@ static class HeatHooks
             self.burn = Rng(0.8f, 1);
             self.room.PlaySound(SoundID.Fire_Spear_Ignite, self.firstChunk, false, 0.5f, 1.4f);
         }
+    }
+
+    // Burnables
+
+    private static void SeedCob_Update(On.SeedCob.orig_Update orig, SeedCob cob, bool eu)
+    {
+        orig(cob, eu);
+
+        // Burn seed cobs for a large amount of heat
+        if (!cob.AbstractCob.dead && cob.open > 0.95f) {
+            foreach (var player in cob.room.game.Players) {
+                if (player.realizedObject is Player p && p.IsLavaCat() && p.room == cob.room) {
+                    Vector2 closest = Custom.ClosestPointOnLineSegment(cob.bodyChunks[0].pos, cob.bodyChunks[1].pos, p.firstChunk.pos);
+                    int freeHand = p.FreeHand();
+                    if (freeHand != -1 && (closest - p.firstChunk.pos).MagnitudeLt(25)) {
+                        p.handOnExternalFoodSource = closest;
+
+                        p.Blink(5);
+                        p.BlindTimer() = 10;
+
+                        p.WispySmoke(freeHand).Emit(p.Hand(freeHand).pos, new Vector2(0, 0.5f), LavaColor.rgb);
+
+                        // Show food bar for food items
+                        Equalize(p, cob, 0.1f);
+
+                        cob.Temperature() += 1 / 5 / 40f;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (cob.Temperature() > 0.1f) {
+            if (RngChance(cob.Temperature())) {
+                cob.room.FireSmoke().Emit(cob.firstChunk.pos, new Vector2(0, 0.5f) + Custom.RNV(), LavaColor.rgb, 10);
+            }
+        }
+
+        if (cob.Temperature() > 0.2f) {
+            cob.Temperature() += 0.01f * Mathf.Max(0, 0.8f - cob.Burn());
+
+            // TODO fire and smoke vfx, heat up nearby entities
+
+            // Heat up nearby objects
+            foreach (var obj in cob.room.physicalObjects[cob.collisionLayer]) {
+                foreach (var chunk in obj.bodyChunks) {
+                    float dist = Vector2.Distance(chunk.pos, cob.firstChunk.pos);
+                    if (dist < 50) {
+                        Equalize(cob, obj, 0.2f * Mathf.InverseLerp(50, 0, dist));
+                    }
+                }
+            }
+
+            // Burning
+            if (cob.Burn() < 1f) {
+                cob.Burn() += 1 / (40 * 10);
+
+                if (cob.Burn() > 0.5f) {
+                    var consumed = cob.room.world.regionState.consumedItems.FirstOrDefault(c => c.placedObjectIndex == cob.AbstractCob.placedObjectIndex);
+                    if (consumed != null) {
+                        consumed.waitCycles += 15;
+                    }
+                }
+            }
+        }
+    }
+
+    private static void SeedCob_DrawSprites(On.SeedCob.orig_DrawSprites orig, SeedCob self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
+    {
+        orig(self, sLeaser, rCam, timeStacker, camPos);
+
+        // TODO blacken cob gradually
     }
 }

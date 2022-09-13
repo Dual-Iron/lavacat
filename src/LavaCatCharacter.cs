@@ -67,6 +67,7 @@ sealed class LavaCatSaveState : CustomSaveState
 
     public LavaCatSaveState(PlayerProgression progression) : base(progression, Plugin.Character)
     {
+        food = 4;
     }
 
     public override void Save(Dictionary<string, string> data)

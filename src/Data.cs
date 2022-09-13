@@ -28,9 +28,11 @@ static class ExtraData
     }
 
     public static ref bool AvoidsHeat(this AbstractCreature c) => ref apoData[c].avoidsHeat;
+
     public static ref float Temperature(this AbstractPhysicalObject o) => ref apoData[o].temperature;
     public static ref float Temperature(this PhysicalObject o) => ref apoData[o.abstractPhysicalObject].temperature;
     public static ref float TemperatureChange(this PhysicalObject o) => ref poData[o].temperatureChange;
+    public static ref float Burn(this PhysicalObject o) => ref poData[o].burn;
 
     public static ref int SteamSound(this PhysicalObject o) => ref poData[o].steamSound;
 
@@ -52,6 +54,7 @@ sealed class ApoData
 sealed class PoData
 {
     public int steamSound = 0;
+    public float burn;
     public float temperatureChange;
     public WeakRef<WispySmoke>[] smoke = new WeakRef<WispySmoke>[0];
 }
