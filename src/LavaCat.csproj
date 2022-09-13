@@ -10,6 +10,21 @@
       <LogicalName>Scenes.SelectMenu.%(Filename)%(Extension)</LogicalName>
       <Visible>false</Visible>
     </EmbeddedResource>
+
+    <EmbeddedResource Include="../assets/SleepScreen/*">
+      <LogicalName>Scenes.SleepScreen.%(Filename)%(Extension)</LogicalName>
+      <Visible>false</Visible>
+    </EmbeddedResource>
+
+    <EmbeddedResource Include="../assets/NewDeath/*">
+      <LogicalName>Scenes.NewDeath.%(Filename)%(Extension)</LogicalName>
+      <Visible>false</Visible>
+    </EmbeddedResource>
+
+    <EmbeddedResource Include="../assets/ArenaPortraits/*">
+      <LogicalName>Illustrations.%(Filename)%(Extension)</LogicalName>
+      <Visible>false</Visible>
+    </EmbeddedResource>
     
     <Reference Include="../lib/*.refstub.dll" />
     <Compile Include="../lib/**/*.cs" />

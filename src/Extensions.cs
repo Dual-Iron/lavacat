@@ -41,13 +41,13 @@ static class Extensions
 
     public static LavaSteam Steam(this Room room) => room.Instance<LavaSteam>(r => new(r));
     public static FireSmokeFixed FireSmoke(this Room room) => room.Instance<FireSmokeFixed>(r => new(r));
-    public static WispySmoke WispySmoke(this PhysicalObject o)
+    public static WispySmoke WispySmoke(this PhysicalObject o, int i = 0)
     {
-        if (o.WispySmokeRef().TryGetTarget(out var smoke) && smoke.room == o.room) {
+        if (o.WispySmokeRef(i).TryGetTarget(out var smoke) && smoke.room == o.room) {
             return smoke;
         }
-        smoke = new(o.room);
-        o.WispySmokeRef() = new(smoke);
+        o.room.AddObject(smoke = new(o.room));
+        o.WispySmokeRef(i) = new(smoke);
         return smoke;
     }
 

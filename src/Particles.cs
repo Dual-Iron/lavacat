@@ -101,7 +101,7 @@ sealed class MysteriousDust : CosmeticSprite
 
 sealed class WispySmoke : MeshSmoke
 {
-    public WispySmoke(Room room) : base((SmokeType)(-1), room, 2, 6f)
+    public WispySmoke(Room room) : base((SmokeType)(-1), room, 6, 6f)
     {
     }
 
@@ -153,20 +153,6 @@ sealed class WispySmoke : MeshSmoke
         public ThickSmokeSegmentFixed(Color fireColor)
         {
             this.fireColor = fireColor;
-        }
-
-        public override void Update(bool eu)
-        {
-            if (nextParticle != null && (pos - nextParticle.pos).MagnitudeGt(50)) {
-                nextParticle = null;
-                lingerPos = lastLingerPos = pos;
-            }
-            if (prevParticle != null && (pos - prevParticle.pos).MagnitudeGt(50)) {
-                prevParticle = null;
-                prevLingerPos = lastPrevLingerPos = pos;
-            }
-
-            base.Update(eu);
         }
 
         public override Color MyColor(float timeStacker)

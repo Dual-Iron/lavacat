@@ -22,6 +22,7 @@ sealed class Plugin : BaseUnityPlugin
             PlayerHooks.Apply();
             HeatHooks.Apply();
             OracleHooks.Apply();
+            MenuHooks.Apply();
         }
         catch (Exception e) {
             Logger.LogError(e);

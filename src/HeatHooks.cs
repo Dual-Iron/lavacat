@@ -1,5 +1,6 @@
 ﻿using Mono.Cecil.Cil;
 using MonoMod.Cil;
+using RWCustom;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -45,6 +46,11 @@ static class HeatHooks
         On.FlareBomb.Update += FlareBomb_Update;
         On.FlareBomb.DrawSprites += FlareBomb_DrawSprites;
         On.Creature.Blind += Creature_Blind;
+
+        On.PuffBall.Update += PuffBall_Update;
+        On.PuffBall.DrawSprites += PuffBall_DrawSprites;
+
+        On.SporePlant.Update += SporePlant_Update;
 
         On.DataPearl.ApplyPalette += DataPearl_ApplyPalette;
         On.DataPearl.UniquePearlMainColor += DataPearl_UniquePearlMainColor;
@@ -237,7 +243,7 @@ static class HeatHooks
                 player.Blink(5);
                 player.BlindTimer() = 10;
 
-                player.WispySmoke().Emit(player.Hand(grasp).pos, new Vector2(0, 0.5f), LavaColor.rgb);
+                player.WispySmoke(grasp.graspUsed).Emit(player.Hand(grasp).pos, new Vector2(0, 0.5f), LavaColor.rgb);
 
                 // Show food bar for food items
                 if (isFood) {
@@ -403,11 +409,13 @@ static class HeatHooks
 
     private static void Creature_Update(On.Creature.orig_Update orig, Creature crit, bool eu)
     {
-        if (crit is not Player && crit.grasps != null) {
+        bool isLavaCat = crit is Player pl && pl.IsLavaCat();
+
+        if (!isLavaCat && crit.grasps != null) {
             foreach (var grasp in crit.grasps) {
-                if (grasp?.grabbed != null && grasp.grabbed.Temperature() > 0.1f) {
-                    bool chance = RngChance(grasp.grabbed.Temperature() * grasp.grabbed.Temperature());
-                    if (chance) {
+                if (grasp?.grabbed != null) {
+                    float temp2 = grasp.grabbed.Temperature();
+                    if (temp2 > 0.1f && RngChance(temp2 * temp2 * 0.2f)) {
                         crit.ReleaseGrasp(grasp.graspUsed);
                         crit.abstractCreature.AvoidsHeat() = true;
                     }
@@ -417,7 +425,7 @@ static class HeatHooks
 
         orig(crit, eu);
 
-        if (crit is Player player && player.IsLavaCat() || crit.room == null) {
+        if (isLavaCat || crit.room == null) {
             return;
         }
 
@@ -650,13 +658,70 @@ static class HeatHooks
     {
         if (blinding != null) {
             if (blinding.Temperature() > 0.5f) {
-                self.Stun(blnd / 3);
+                int stun = blnd / 2;
+                if (blinding.thrownBy == self) {
+                    stun /= 2;
+                }
+                self.Stun(stun);
             }
 
             blnd += (int)(blnd * blinding.Temperature());
         }
 
         orig(self, blnd);
+    }
+
+    // Spore plant/beehive
+
+    private static void PuffBall_Update(On.PuffBall.orig_Update orig, PuffBall self, bool eu)
+    {
+        orig(self, eu);
+
+        if (self.Temperature() > 0.49f) {
+            self.Explode();
+        }
+    }
+
+    private static void PuffBall_DrawSprites(On.PuffBall.orig_DrawSprites orig, PuffBall self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
+    {
+        orig(self, sLeaser, rCam, timeStacker, camPos);
+
+        self.ApplyPalette(sLeaser, rCam, rCam.currentPalette);
+
+        int l = self.dots.Length;
+        for (int i = 0; i < l; i++) {
+            sLeaser.sprites[3 + i].color = Color.Lerp(sLeaser.sprites[3 + i].color, LavaColor.rgb, self.Temperature() / 0.4f);
+            sLeaser.sprites[3 + i + l].color = Color.Lerp(sLeaser.sprites[3 + i + l].color, LavaColor.rgb, self.Temperature() / 0.4f);
+        }
+    }
+
+    private static void SporePlant_Update(On.SporePlant.orig_Update orig, SporePlant nest, bool eu)
+    {
+        orig(nest, eu);
+
+        float temp = nest.Temperature();
+
+        if (temp > 0) {
+            nest.angry = Mathf.Clamp01(nest.angry - temp);
+        }
+        if (temp > 0.2f) {
+            nest.Pacified = true;
+
+            if (RngChance(temp * temp)) {
+                var pos = nest.firstChunk.pos + nest.firstChunk.rad * Random.insideUnitCircle * 0.5f;
+                var left = Custom.RotateAroundOrigo(nest.rotation, -1 * Rng(80, 100));
+                var right = Custom.RotateAroundOrigo(nest.rotation, 1 * Rng(80, 100));
+
+                nest.WispySmoke(0).Emit(pos, left * Rng(1, 3 * temp), LavaColor.rgb);
+                nest.WispySmoke(1).Emit(pos, right * Rng(1, 3 * temp), LavaColor.rgb);
+            }
+        }
+        if (temp > 0.6f && RngChance(0.05f)) {
+            nest.room.PlaySound(SoundID.Firecracker_Burn, nest.firstChunk.pos, 0.15f, 1.4f);
+        }
+        if (temp > 0.7f) {
+            nest.ReleaseBees();
+        }
     }
 
     // Pearls

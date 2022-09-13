@@ -1,0 +1,21 @@
+{
+  "images": [
+    {
+      "name": "Flat.png",
+      "x": 0,
+      "y": 0,
+      "crisp": false
+    },
+    {
+      "name": "Flat.png",
+      "x": 0,
+      "y": 0,
+      "flatmode": true,
+      "crisp": false
+    }
+  ],
+  "idledepths": [
+    1.8,
+    2.2
+  ]
+}

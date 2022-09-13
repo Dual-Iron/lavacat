@@ -1,0 +1,56 @@
+{
+  "images": [
+    {
+      "name": "0 - BGMachines.png",
+      "x": 724,
+      "y": 190,
+      "depth": 3.5
+    },
+    {
+      "name": "1 - BGGrass.png",
+      "x": 668,
+      "y": 106,
+      "depth": 2.8
+    },
+    {
+      "name": "2 - BGGrass.png",
+      "x": 704,
+      "y": 120,
+      "depth": 2.7
+    },
+    {
+      "name": "3 - BGGrass.png",
+      "x": 738,
+      "y": 152,
+      "depth": 2.6
+    },
+    {
+      "name": "4 - FGGrass.png",
+      "x": 744,
+      "y": 112,
+      "depth": 2.5
+    },
+    {
+      "name": "5 - Cat.png",
+      "x": 744,
+      "y": 116,
+      "depth": 2.4
+    },
+    {
+      "name": "Flat.png",
+      "x": 0,
+      "y": 0,
+      "flatmode": true,
+      "crisp": false
+    }
+  ],
+  "idledepths": [
+    2.3,
+    2.7
+  ],
+  "markx": 700,
+  "marky": 600,
+  "glowx": 700,
+  "glowy": 600,
+  "slugcatdepth": 2.2
+}

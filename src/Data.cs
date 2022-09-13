@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using WeakTables;
 
 namespace LavaCat;
@@ -13,7 +14,18 @@ static class ExtraData
     public static ref float HeatProgress(this Player p) => ref plrData[p].eatProgress;
     public static ref int BlindTimer(this Player p) => ref plrData[p].blindTimer;
 
-    public static ref WeakRef<WispySmoke> WispySmokeRef(this PhysicalObject o) => ref poData[o].smoke;
+    public static ref WeakRef<WispySmoke> WispySmokeRef(this PhysicalObject o, int i)
+    {
+        int len = poData[o].smoke.Length;
+        if (len <= i) {
+            Array.Resize(ref poData[o].smoke, i + 1);
+
+            for (int n = len; n < i + 1; n++) {
+                poData[o].smoke[n] = new();
+            }
+        }
+        return ref poData[o].smoke[i];
+    }
 
     public static ref bool AvoidsHeat(this AbstractCreature c) => ref apoData[c].avoidsHeat;
     public static ref float Temperature(this AbstractPhysicalObject o) => ref apoData[o].temperature;
@@ -41,7 +53,7 @@ sealed class PoData
 {
     public int steamSound = 0;
     public float temperatureChange;
-    public WeakRef<WispySmoke> smoke = new();
+    public WeakRef<WispySmoke>[] smoke = new WeakRef<WispySmoke>[0];
 }
 
 sealed class PlayerGraphicsData
