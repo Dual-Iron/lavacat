@@ -208,16 +208,12 @@ static class PlayerHooks
     private static void Creature_Violence(On.Creature.orig_Violence orig, Creature crit, BodyChunk source, Vector2? directionAndMomentum, BodyChunk hitChunk, PhysicalObject.Appendage.Pos hitAppendage, Creature.DamageType type, float damage, float stunBonus)
     {
         if (crit is Player p && p.IsLavaCat()) {
+            p.Temperature() -= damage * 0.05f;
+
             if (p.Temperature() > 0.5f) {
                 float reduction = p.Temperature() * 0.6f;
-
                 damage *= 1 - reduction;
                 stunBonus *= 1 - reduction;
-            }
-
-            if (type == Creature.DamageType.Electric) {
-                damage *= 0.01f;
-                stunBonus *= 0.01f;
             }
 
             for (int i = 0; i < 30 + 50 * damage + 0.5f * stunBonus; i++) {

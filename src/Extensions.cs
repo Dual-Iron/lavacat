@@ -51,10 +51,14 @@ static class Extensions
         return smoke;
     }
 
-    public static void Cool(this PhysicalObject o, float temperatureLoss, float smokeIntensity, Vector2 smokePos, Vector2 smokeVel)
+    public static void Cool(this BodyChunk c, float temperatureLoss, float smokeIntensity, Vector2 smokePos, Vector2 smokeVel)
     {
+        PhysicalObject o = c.owner;
         if (o.Temperature() > 0 && temperatureLoss > 0) {
-            o.Temperature() = Mathf.Clamp01(o.Temperature() - temperatureLoss);
+            // 0.35 is chosen because that's one slugcat chunk
+            float reduction = c.mass / 0.35f;
+
+            o.Temperature() = Mathf.Clamp01(o.Temperature() - temperatureLoss / reduction);
             o.TemperatureChange() = Mathf.Min(o.TemperatureChange(), 0);
 
             o.room.Steam().Emit(smokePos, smokeVel, smokeIntensity);

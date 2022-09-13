@@ -26,19 +26,29 @@ static class HeatHooks
         }
 
         if (o is Creature c && c.rainDeath > 0) {
-            o.Cool(c.rainDeath / 100f, c.rainDeath * 0.5f, c.mainBodyChunk.pos, new Vector2(0, 5) + Random.insideUnitCircle * 5);
+            o.RandomChunk.Cool(c.rainDeath / 100f, c.rainDeath * 0.5f, c.mainBodyChunk.pos, new Vector2(0, 5) + Random.insideUnitCircle * 5);
         }
 
         // Cool down if any part of the body is submerged
         foreach (var chunk in o.bodyChunks) {
             bool mainChunk = o.bodyChunks.Length == 0 || o is Creature c2 && c2.mainBodyChunk == chunk;
+            if (chunk.submersion > 0) {
+                // Reduce water level at position
+                if (o.room.waterObject != null) {
+                    o.room.waterObject.WaterfallHitSurface(chunk.pos.x - chunk.rad, chunk.pos.x + chunk.rad, chunk.submersion);
 
-            o.Cool(
-                temperatureLoss: chunk.submersion / (mainChunk ? 100 : 400),
-                smokeIntensity: chunk.submersion * 0.5f,
-                smokePos: chunk.pos + Random.insideUnitCircle * chunk.rad * 0.5f,
-                smokeVel: new Vector2(0, 5) + Random.insideUnitCircle * 5
-            );
+                    // Divide by room width so that bigger rooms lose water level slower.
+                    // E.g. shoreline should evaporate MUCH slower than a flooded shelter
+                    o.room.waterObject.fWaterLevel -= chunk.submersion / o.room.Width;
+                }
+
+                chunk.Cool(
+                    temperatureLoss: chunk.submersion / (mainChunk ? 100 : 400),
+                    smokeIntensity: chunk.submersion * 0.5f,
+                    smokePos: chunk.pos + Random.insideUnitCircle * chunk.rad * 0.5f,
+                    smokeVel: new Vector2(0, 5) + Random.insideUnitCircle * 5
+                );
+            }
         }
 
         // Iterate room's objects safely
@@ -51,7 +61,7 @@ static class HeatHooks
             if (updateable is WaterDrip drip) {
                 foreach (var chunk in o.bodyChunks) {
                     if ((chunk.pos - drip.pos).MagnitudeLt(chunk.rad + drip.width)) {
-                        o.Cool(1 / 200f, 0.22f, drip.pos, -drip.vel * 0.5f);
+                        chunk.Cool(1 / 200f, 0.22f, drip.pos, -drip.vel * 0.5f);
 
                         drip.life = 0;
                     }
@@ -66,7 +76,7 @@ static class HeatHooks
                     bounds2.Grow(chunk.rad);
 
                     if (bounds2.Vector2Inside(chunk.pos)) {
-                        o.Cool(1 / 600f * waterfall.flow, 0.3f, chunk.pos + Random.insideUnitCircle * chunk.rad * 0.5f, Random.insideUnitCircle * 2);
+                        chunk.Cool(1 / 600f * waterfall.flow, 0.3f, chunk.pos + Random.insideUnitCircle * chunk.rad * 0.5f, Random.insideUnitCircle * 2);
                     }
                 }
             }
@@ -164,6 +174,8 @@ static class HeatHooks
         On.FirecrackerPlant.Update += FirecrackerPlant_Update;
         On.ExplosiveSpear.Update += ExplosiveSpear_Update;
         On.ScavengerBomb.Update += ScavengerBomb_Update;
+
+        On.VultureGrub.Update += VultureGrub_Update;
 
         On.SeedCob.Update += SeedCob_Update;
         On.SeedCob.DrawSprites += SeedCob_DrawSprites;
@@ -317,11 +329,6 @@ static class HeatHooks
         }
     }
 
-    private static bool ReleaseHeavyObjectHook(bool dropHeavyObject, Player player)
-    {
-        return dropHeavyObject && (!player.IsLavaCat() || player.input[0].y < 0);
-    }
-    
     // -- Physics --
 
     private static void PhysicalObject_Collide(On.PhysicalObject.orig_Collide orig, PhysicalObject self, PhysicalObject otherObject, int myChunk, int otherChunk)
@@ -330,6 +337,17 @@ static class HeatHooks
 
         bool connected = self.abstractPhysicalObject.stuckObjects.Any(s => s.B == otherObject.abstractPhysicalObject || s.B == otherObject.abstractPhysicalObject);
         if (!connected) {
+            // If being touched by a hot creature, blame it for our death
+            if (self is Creature crit && otherObject is Creature otherCrit && otherCrit.Temperature() > crit.Temperature() && otherCrit.Temperature() > 0.1f) {
+                crit.SetKillTag(otherCrit.abstractCreature);
+
+                float difference = otherCrit.Temperature() - crit.Temperature();
+                Plugin.Logger.LogInfo(difference);
+                if (RngChance(difference / 60f)) {
+                    crit.room.socialEventRecognizer.SocialEvent(SocialEventRecognizer.EventID.LethalAttackAttempt, otherCrit, crit, null);
+                }
+            }
+
             Equalize(self, otherObject, speed: 0.15f);
         }
     }
@@ -387,7 +405,7 @@ static class HeatHooks
             foreach (var grasp in crit.grasps) {
                 if (grasp?.grabbed != null) {
                     float temp2 = grasp.grabbed.Temperature();
-                    if (temp2 > 0.1f && RngChance(temp2 * temp2 * 0.2f)) {
+                    if (temp2 > 0.1f && RngChance(temp2 * temp2 * 0.1f)) {
                         crit.ReleaseGrasp(grasp.graspUsed);
                         crit.abstractCreature.AvoidsHeat() = true;
                     }
@@ -417,7 +435,7 @@ static class HeatHooks
 
                 crit.Temperature() *= 0.95f;
 
-                Fx(crit, temp, crit.bodyChunks.RandomElement());
+                Fx(crit, temp, crit.RandomChunk);
             }
 
             // Stun bonus is negative to prevent any stunning at all.
@@ -429,7 +447,7 @@ static class HeatHooks
                 damage *= crit.Template.damageRestistances[4, 0];
             }
 
-            BodyChunk chunk = crit.bodyChunks.RandomElement();
+            BodyChunk chunk = crit.RandomChunk;
 
             crit.Violence(null, null, chunk, null, Creature.DamageType.Explosion, damage, stunBonus);
 
@@ -437,7 +455,7 @@ static class HeatHooks
             if (burningGrasp != null) {
                 crit.SetKillTag(burningGrasp.grabber.abstractCreature);
 
-                if (crit.State.alive && RngChance(1 / 80f)) {
+                if (crit.State.alive && RngChance(1 / 40f)) {
                     crit.room.socialEventRecognizer.SocialEvent(SocialEventRecognizer.EventID.LethalAttackAttempt, burningGrasp.grabber, crit, null);
 
                     (burningGrasp.grabber as Player)?.SessionRecord?.BreakPeaceful(crit);
@@ -548,7 +566,7 @@ static class HeatHooks
     private static bool Rock_HitSomething(On.Rock.orig_HitSomething orig, Rock self, SharedPhysics.CollisionResult result, bool eu)
     {
         if (result.obj != null) {
-            Equalize(self, result.obj, 0.20f, losePlayerHeat: true);
+            Equalize(self, result.obj, 0.5f, losePlayerHeat: true);
         }
 
         return orig(self, result, eu);
@@ -747,7 +765,7 @@ static class HeatHooks
     {
         orig(self, eu);
 
-        if (self.Temperature() > 0.1f && self.fuseCounter == 0) {
+        if (self.Temperature() > 0.25f && self.fuseCounter == 0) {
             self.Ignite();
             self.fuseCounter += 20;
         }
@@ -757,7 +775,7 @@ static class HeatHooks
     {
         orig(self, eu);
 
-        if (self.Temperature() > 0.1f && self.igniteCounter == 0) {
+        if (self.Temperature() > 0.25f && self.igniteCounter == 0) {
             self.Ignite();
             self.explodeAt += 20;
         }
@@ -767,9 +785,24 @@ static class HeatHooks
     {
         orig(self, eu);
 
-        if (self.Temperature() > 0.1f) {
+        if (self.Temperature() > 0.25f) {
             self.burn = Rng(0.8f, 1);
             self.room.PlaySound(SoundID.Fire_Spear_Ignite, self.firstChunk, false, 0.5f, 1.4f);
+        }
+    }
+
+    // Grub
+
+    private static void VultureGrub_Update(On.VultureGrub.orig_Update orig, VultureGrub self, bool eu)
+    {
+        orig(self, eu);
+
+        if (self.Temperature() > 0.05f) {
+            self.InitiateSignalCountDown();
+        }
+
+        if (self.Temperature() > 0.5f) {
+            self.Die();
         }
     }
 
