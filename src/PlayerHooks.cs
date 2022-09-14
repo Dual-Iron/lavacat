@@ -9,8 +9,6 @@ static class PlayerHooks
 {
     public static void Apply()
     {
-        On.Player.Die += Yipee;
-
         // Sleep in to avoid most of the raindrops at the start of the cycle
         On.RainCycle.ctor += RainCycle_ctor;
 
@@ -39,19 +37,6 @@ static class PlayerHooks
         On.PlayerGraphics.ApplyPalette += PlayerGraphics_ApplyPalette;
         On.PlayerGraphics.DrawSprites += PlayerGraphics_DrawSprites;
         On.PlayerGraphics.Update += PlayerGraphics_Update;
-    }
-
-    private static void Yipee(On.Player.orig_Die orig, Player self)
-    {
-        orig(self);
-
-        if (self.IsLavaCat()) {
-            self.Temperature() = 2;
-
-            AbstractPhysicalObject abs = new(self.room.world, AbstractPhysicalObject.AbstractObjectType.ScavengerBomb, null, self.abstractCreature.pos, self.room.game.GetNewID());
-            ScavengerBomb bomb = new(abs, self.room.world) { room = self.room };
-            bomb.Explode(self.firstChunk);
-        }
     }
 
     private static void RainCycle_ctor(On.RainCycle.orig_ctor orig, RainCycle self, World world, float minutes)
