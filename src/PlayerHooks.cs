@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using UnityEngine;
+﻿using UnityEngine;
 using static LavaCat.Extensions;
 using static UnityEngine.Mathf;
 
@@ -9,6 +8,10 @@ static class PlayerHooks
 {
     public static void Apply()
     {
+        // Prevent the silly super-jump when holding heavy objects
+        On.Player.Jump += Player_Jump;
+        On.Player.HeavyCarry += Player_HeavyCarry;
+
         // Sleep in to avoid most of the raindrops at the start of the cycle
         On.RainCycle.ctor += RainCycle_ctor;
 
@@ -37,6 +40,22 @@ static class PlayerHooks
         On.PlayerGraphics.ApplyPalette += PlayerGraphics_ApplyPalette;
         On.PlayerGraphics.DrawSprites += PlayerGraphics_DrawSprites;
         On.PlayerGraphics.Update += PlayerGraphics_Update;
+    }
+
+    static bool jumping = false;
+    private static void Player_Jump(On.Player.orig_Jump orig, Player self)
+    {
+        jumping = true;
+        try {
+            orig(self);
+        }
+        finally {
+            jumping = false;
+        }
+    }
+    private static bool Player_HeavyCarry(On.Player.orig_HeavyCarry orig, Player self, PhysicalObject obj)
+    {
+        return !jumping && orig(self, obj);
     }
 
     private static void RainCycle_ctor(On.RainCycle.orig_ctor orig, RainCycle self, World world, float minutes)
