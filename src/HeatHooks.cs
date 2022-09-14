@@ -26,7 +26,7 @@ static class HeatHooks
         }
 
         if (o is Creature c && c.rainDeath > 0) {
-            o.RandomChunk.Cool(c.rainDeath / 100f, c.rainDeath * 0.5f, c.mainBodyChunk.pos, new Vector2(0, 5) + Random.insideUnitCircle * 5);
+            o.RandomChunk.Cool(c.rainDeath / 40f, c.rainDeath * 0.5f, c.mainBodyChunk.pos, new Vector2(0, 5) + Random.insideUnitCircle * 5);
         }
 
         // Cool down if any part of the body is submerged
@@ -97,7 +97,7 @@ static class HeatHooks
             IPlayerEdible or WaterNut or FlyLure => Edible(0.2f),
             Spear => Inedible(0.50f),
             Rock => Inedible(0.05f),
-            Player p => Inedible(p.IsLavaCat() ? 0.01f : 0.10f),
+            Player => Inedible(0.02f),
             DataPearl => Inedible(0.07f),
             Creature => Inedible(0.07f),
             SeedCob => Inedible(0.05f),
@@ -115,6 +115,8 @@ static class HeatHooks
 
     private static void Equalize(PhysicalObject self, PhysicalObject other, float speed = 0.05f, bool losePlayerHeat = false)
     {
+        if (speed <= 0 || self == other) return;
+
         // Lighter objects should lose heat faster than heavier objects.
         float massRatio = other.TotalMass / (other.TotalMass + self.TotalMass);
         float conductivity = HeatProperties(self).Conductivity;
@@ -138,9 +140,11 @@ static class HeatHooks
         On.Player.ReleaseObject += Player_ReleaseObject;
 
         // Special behavior for heated objects
+        On.Player.Collide += Player_Collide;
         On.PhysicalObject.Collide += PhysicalObject_Collide;
         On.PhysicalObject.Update += PhysicalObject_Update;
 
+        On.Creature.Violence += Creature_Violence;
         On.Creature.Update += Creature_Update;
         On.PreyTracker.TrackedPrey.Attractiveness += TrackedPrey_Attractiveness;
         On.ScavengerAI.CollectScore_PhysicalObject_bool += ScavengerAI_CollectScore_PhysicalObject_bool;
@@ -151,7 +155,6 @@ static class HeatHooks
         On.Spear.Update += Spear_Update;
         On.Spear.DrawSprites += Spear_DrawSprites;
 
-        On.Rock.HitSomething += Rock_HitSomething;
         On.Rock.Update += Rock_Update;
         On.Rock.DrawSprites += Rock_DrawSprites;
 
@@ -267,7 +270,7 @@ static class HeatHooks
                 // Show food bar for food items
                 if (isFood) {
                     if (player.abstractCreature.world.game.cameras[0].hud?.foodMeter != null)
-                        player.abstractCreature.world.game.cameras[0].hud.foodMeter.visibleCounter = 100;
+                        player.abstractCreature.world.game.cameras[0].hud.foodMeter.visibleCounter = 200;
 
                     int particleCount = (int)Rng(0, progress * 10);
                     for (int i = 0; i < particleCount; i++) {
@@ -332,11 +335,23 @@ static class HeatHooks
 
     // -- Physics --
 
+    private static void Player_Collide(On.Player.orig_Collide orig, Player self, PhysicalObject otherObject, int myChunk, int otherChunk)
+    {
+        orig(self, otherObject, myChunk, otherChunk);
+
+        Collide(self, otherObject);
+    }
+
     private static void PhysicalObject_Collide(On.PhysicalObject.orig_Collide orig, PhysicalObject self, PhysicalObject otherObject, int myChunk, int otherChunk)
     {
         orig(self, otherObject, myChunk, otherChunk);
 
-        bool connected = self.abstractPhysicalObject.stuckObjects.Any(s => s.B == otherObject.abstractPhysicalObject || s.B == otherObject.abstractPhysicalObject);
+        Collide(self, otherObject);
+    }
+
+    private static void Collide(PhysicalObject self, PhysicalObject otherObject)
+    {
+        bool connected = self.abstractPhysicalObject.stuckObjects.Any(s => s.A == otherObject.abstractPhysicalObject || s.B == otherObject.abstractPhysicalObject);
         if (!connected) {
             // If being touched by a hot creature, blame it for our death
             if (self is Creature crit && otherObject is Creature otherCrit && otherCrit.Temperature() > crit.Temperature() && otherCrit.Temperature() > 0.1f) {
@@ -348,7 +363,7 @@ static class HeatHooks
                 }
             }
 
-            Equalize(self, otherObject, speed: 0.15f);
+            Equalize(self, otherObject, speed: 0.07f);
         }
     }
 
@@ -373,10 +388,11 @@ static class HeatHooks
 
         // Lose heat to diffusion
         if (!touchingLavaCat) {
-            // More massive things take slightly longer to cool down
-            float heatConservation = self.TotalMass / (self.TotalMass + 0.15f);
+            self.Temperature() -= 0.01f * self.Temperature() * HeatProperties(self).Conductivity;
 
-            self.Temperature() *= 0.992f + 0.004f * heatConservation;
+            if (self.Temperature() < 0.000001f) {
+                self.Temperature() = 0f;
+            }
         }
 
         if (self.TemperatureChange() < 0) {
@@ -397,18 +413,61 @@ static class HeatHooks
 
     // Burning creatures
 
+    private static void Creature_Violence(On.Creature.orig_Violence orig, Creature crit, BodyChunk source, Vector2? directionAndMomentum, BodyChunk hitChunk, PhysicalObject.Appendage.Pos hitAppendage, Creature.DamageType type, float damage, float stunBonus)
+    {
+        // Rocks do extra damage while hot
+        if (source?.owner is Rock r && r.Temperature() > crit.Temperature()) {
+            damage += 0.2f * (r.Temperature() - crit.Temperature());
+        }
+
+        // Lavacat takes less damage and stun while hot
+        if (crit is Player p && p.IsLavaCat()) {
+            float damageOriginal = damage;
+
+            if (p.Temperature() > 0.5f) {
+                float reduction = p.Temperature() * 0.6f;
+                damage *= 1 - reduction;
+                stunBonus *= 1 - reduction;
+            }
+
+            p.Temperature() -= damageOriginal * 0.1f;
+
+            // bday
+            for (int i = 0; i < 30 + 50 * damage + 0.5f * stunBonus; i++) {
+                Vector2 pos = hitChunk.pos + Random.insideUnitCircle * hitChunk.rad * 0.5f;
+                p.room.AddObject(new MysteriousDust() {
+                    pos = pos,
+                    lastPos = pos,
+                    vel = directionAndMomentum is Vector2 vec
+                            ? -5 * vec + -5 * Random.insideUnitCircle * vec.magnitude
+                            : Random.insideUnitCircle * 30
+                });
+            }
+        }
+
+        orig(crit, source, directionAndMomentum, hitChunk, hitAppendage, type, damage, stunBonus);
+    }
+
     private static void Creature_Update(On.Creature.orig_Update orig, Creature crit, bool eu)
     {
         bool isLavaCat = crit is Player pl && pl.IsLavaCat();
 
+        // If grabbing a burning creature and can't withstand the heat, drop it
         if (!isLavaCat && crit.grasps != null) {
             foreach (var grasp in crit.grasps) {
-                if (grasp?.grabbed != null) {
-                    float temp2 = grasp.grabbed.Temperature();
-                    if (temp2 > 0.1f && RngChance(temp2 * temp2 * 0.1f)) {
-                        crit.ReleaseGrasp(grasp.graspUsed);
-                        crit.abstractCreature.AvoidsHeat() = true;
-                    }
+                if (grasp?.grabbed == null) {
+                    continue;
+                }
+
+                // Creatures with higher pain tolerance (stun resistance) should hold onto grasps longer.
+                var resist = Mathf.Max(0.5f, crit.Template.baseStunResistance);
+                var diff = grasp.grabbed.Temperature() - crit.Temperature();
+                if (diff > 0.1f && RngChance(diff * diff / resist)) {
+                    Fx(grasp.grabbedChunk, diff * 0.5f);
+
+                    crit.abstractCreature.AvoidsHeat() = true;
+                    crit.ReleaseGrasp(grasp.graspUsed);
+                    crit.Stun((int)(16 * diff * crit.Template.baseStunResistance));
                 }
             }
         }
@@ -422,36 +481,8 @@ static class HeatHooks
         float temp = crit.Temperature();
 
         if (temp > 0.1f) {
-            BurnCrit(crit, temp);
-        }
-
-        static void BurnCrit(Creature crit, float temp)
-        {
-            // Stun creatures
-            if (RngChance(0.06f)) {
-                int stunTime = (int)Mathf.Lerp(2, 10 * crit.Template.baseStunResistance, temp * temp);
-
-                crit.Stun(stunTime);
-
-                crit.Temperature() *= 0.95f;
-
-                Fx(crit, temp, crit.RandomChunk);
-            }
-
-            // Stun bonus is negative to prevent any stunning at all.
-            float damage = temp / 80f;
-            float stunBonus = damage * -30;
-
-            // We're using explosion damage as a stand-in for fire damage. This ignores explosion damage resistance.
-            if (crit.Template.damageRestistances[4, 0] > 0) {
-                damage *= crit.Template.damageRestistances[4, 0];
-            }
-
-            BodyChunk chunk = crit.RandomChunk;
-
-            crit.Violence(null, null, chunk, null, Creature.DamageType.Explosion, damage, stunBonus);
-
             foreach (var grasp in crit.grabbedBy) {
+                // If grabbed by a burning creature, blame it for our death
                 if (grasp.grabber.Temperature() > crit.Temperature()) {
                     var grabber = grasp.grabber;
 
@@ -465,16 +496,41 @@ static class HeatHooks
                     }
                 }
             }
+
+            // Blow off steam occasionally and get stunned
+            if (RngChance(0.06f)) {
+                float rand = Rng(4f, 17f);
+                float stun = Mathf.Lerp(rand, rand * crit.Template.baseStunResistance.Max(1), temp);
+
+                crit.Stun((int)stun);
+
+                crit.Temperature() *= 0.9f;
+
+                Fx(crit.RandomChunk, temp);
+            }
+
+            // Stun bonus is negative to prevent any stunning at all.
+            float damage = temp / 120f;
+            float stunBonus = damage * -30;
+
+            // We're using explosion damage as a stand-in for fire damage. This ignores explosion damage resistance.
+            if (crit.Template.damageRestistances[4, 0] > 0) {
+                damage *= crit.Template.damageRestistances[4, 0];
+            }
+
+            BodyChunk chunk = crit.RandomChunk;
+
+            crit.Violence(null, null, chunk, null, Creature.DamageType.Explosion, damage, stunBonus);
         }
 
-        static void Fx(Creature crit, float temp, BodyChunk chunk)
+        static void Fx(BodyChunk chunk, float temp)
         {
-            crit.room.PlaySound(SoundID.Firecracker_Burn, chunk.pos, 0.2f, 1.2f);
-
             Vector2 pos = chunk.pos + Random.insideUnitCircle * chunk.rad * 0.5f;
             Vector2 vel = new Vector2(0, 5) + Random.insideUnitCircle * 5;
             float intensity = 0.1f + 0.9f * temp;
-            crit.room.Steam().Emit(pos, vel, intensity);
+
+            chunk.owner.room.Steam().Emit(pos, vel, intensity);
+            chunk.owner.room.PlaySound(SoundID.Firecracker_Burn, chunk.pos, 0.2f, 1.2f);
         }
     }
 
@@ -542,7 +598,11 @@ static class HeatHooks
 
         orig(spear, eu);
 
-        float temp = spear.Temperature();
+        ref float temp = ref spear.Temperature();
+
+        if (spear.stuckInWall != null) {
+            temp *= 0.9f;
+        }
 
         if (spear.room != null && FireParticleChance(temp)) {
             LavaFireSprite sprite = new(spear.firstChunk.pos + Random.insideUnitCircle * 2 + spear.rotation * Rng(-halfLength, halfLength));
@@ -565,15 +625,6 @@ static class HeatHooks
         if (self.blink <= 0) {
             sLeaser.sprites[0].color = HeatedBlackColor(self.color.HSL().lightness, self.Temperature()).rgb;
         }
-    }
-
-    private static bool Rock_HitSomething(On.Rock.orig_HitSomething orig, Rock self, SharedPhysics.CollisionResult result, bool eu)
-    {
-        if (result.obj != null) {
-            Equalize(self, result.obj, 0.5f, losePlayerHeat: true);
-        }
-
-        return orig(self, result, eu);
     }
 
     private static void Rock_Update(On.Rock.orig_Update orig, Rock self, bool eu)
@@ -811,59 +862,135 @@ static class HeatHooks
 
     private static void SeedCob_Update(On.SeedCob.orig_Update orig, SeedCob cob, bool eu)
     {
-        orig(cob, eu);
-
-        return;
-
-        // Burn seed cobs for a large amount of heat
         ref float temp = ref cob.Temperature();
 
-        if (!cob.AbstractCob.dead && cob.open > 0.95f && cob.SeedBurns().All(f => f <= 0)) {
+        bool burnt = cob.SeedBurns().Any(seedBurn => seedBurn > 0);
+        bool dead = cob.AbstractCob.dead;
+
+        // Set `open` to prevent it from decreasing after burning;
+        // set `dead` to prevent other players from eating it once burnt
+        float open = cob.open;
+        cob.AbstractCob.dead |= burnt;
+
+        orig(cob, eu);
+
+        cob.AbstractCob.dead = dead;
+        if (cob.open < open)
+            cob.open = open;
+
+        // Curl shell extra when burnt
+        if (cob.AbstractCob.opened) {
+            float destOpen = temp * 1.35f;
+
+            if (cob.open < destOpen)
+                cob.open = Mathf.Lerp(cob.open, destOpen, Mathf.Lerp(0.01f, 0.0001f, cob.open / destOpen));
+        }
+
+        // Open when too hot
+        if (temp > 0.20f) {
+            cob.Open();
+        }
+
+        // Smoky!
+        if (temp > 0.1f) {
+            cob.WispySmoke(0).Emit(cob.firstChunk.pos, new Vector2(0, 1), Color.black);
+        }
+
+        // Let lavacat players burn cobs
+        if (!burnt && cob.Temperature() < 0.45f) {
             foreach (var player in cob.room.game.Players) {
-                if (player.realizedObject is not Player p || !p.IsLavaCat() || p.room != cob.room) {
+                if (player.realizedObject is not Player p || p.room != cob.room || p.stun > 0 || p.FreeHand() == -1 || !p.IsLavaCat()) {
                     continue;
                 }
 
                 Vector2 closest = Custom.ClosestPointOnLineSegment(cob.bodyChunks[0].pos, cob.bodyChunks[1].pos, p.firstChunk.pos);
-                int freeHand = p.FreeHand();
-                if (freeHand > -1 && (closest - p.firstChunk.pos).MagnitudeLt(35)) {
-                    p.handOnExternalFoodSource = closest;
+                if ((closest - p.firstChunk.pos).MagnitudeGt(22)) {
+                    continue;
+                }
 
-                    p.Blink(5);
-                    p.BlindTimer() = 10;
+                p.handOnExternalFoodSource = closest;
+                p.eatExternalFoodSourceCounter = 30;
 
-                    if (p.room.game.cameras[0].hud.foodMeter != null) {
-                        p.room.game.cameras[0].hud.foodMeter.visibleCounter = 60;
-                    }
+                p.Blink(5);
+                p.BlindTimer() = 10;
 
-                    temp += 0.2f / 120f;
+                if (p.room.game.cameras[0].hud.foodMeter != null) {
+                    p.room.game.cameras[0].hud.foodMeter.visibleCounter = 200;
+                }
 
-                    if (temp > 0.2f && RngChance(temp * temp * 0.5f)) {
-                        var seed = cob.seedPositions.OrderByDescending(v => (v - closest).sqrMagnitude).Enumerate().First();
+                // Heat up cob, but don't equalize, or that'd generate heat from nothing
+                int ticks = 800;
+                if (cob.AbstractCob.opened) ticks -= 200;
+                if (cob.AbstractCob.dead) ticks -= 100;
 
-                        cob.SeedBurns()[seed.Index] += 0.01f;
-                    }
+                temp += 1f / ticks;
+            }
+        }
 
-                    break;
+        BurnCob(cob, burnt, ref temp);
+    }
+
+    private static void BurnCob(SeedCob cob, bool burnt, ref float temp)
+    {
+        // TODO: satisfying fire crackle noises
+        var burns = cob.SeedBurns();
+
+        // Heat up nearby objects while hot
+        if (temp > 0.1f && burnt) {
+            foreach (var obj in cob.room.physicalObjects[cob.collisionLayer]) {
+                foreach (var chunk in obj.bodyChunks) {
+                    Vector2 closest = Custom.ClosestPointOnLineSegment(cob.bodyChunks[0].pos, cob.bodyChunks[1].pos, chunk.pos);
+                    float sqDist = (chunk.pos - closest).sqrMagnitude;
+
+                    Equalize(cob, obj, speed: 0.25f * Mathf.InverseLerp(50*50, 5*5, sqDist));
                 }
             }
         }
 
-        if (temp > 0.08f) {
-            cob.WispySmoke(0).Emit(cob.firstChunk.pos, new Vector2(0, 1), LavaColor.rgb);
+        // Randomly ignite seeds while hot
+        if (RngChance((temp-0.2f) * 0.06f)) {
+            cob.SeedBurns()[RngInt(0, cob.seedPositions.Length)] += 0.01f;
         }
 
-        Burn(cob, ref temp);
-    }
-
-    private static void Burn(SeedCob cob, ref float temp)
-    {
+        // Burn seeds
         for (int i = 0; i < cob.seedPositions.Length; i++) {
             ref float burn = ref cob.SeedBurns()[i];
 
-            if (burn > 0 && burn < 1) {
-                burn += 1 / 80f;
-                burn = Mathf.Clamp01(burn);
+            if (burn == 0 || burn >= 1f) {
+                continue;
+            }
+
+            // If dead, this cob should burn extremely briefly
+            burn += cob.AbstractCob.dead ? 1 / 80f : 1 / 400f;
+
+            if (burn > 1f) {
+                burn = 1f;
+
+                Vector2 rot = 0.35f * (Custom.PerpendicularVector(cob.bodyChunks[0].pos, cob.bodyChunks[1].pos) * cob.seedPositions[i].x + Random.insideUnitCircle).normalized;
+                cob.bodyChunks[0].vel += rot * cob.seedPositions[i].y;
+                cob.bodyChunks[0].pos += rot * cob.seedPositions[i].y;
+                cob.bodyChunks[1].vel += rot * (1f - cob.seedPositions[i].y);
+                cob.bodyChunks[1].pos += rot * (1f - cob.seedPositions[i].y);
+            }
+
+            // Heat up self and nearby seeds using quadratic from 0..1 that peaks at 0.5
+            float heat = 1 - (2 * burn - 1).Pow(2);
+
+            temp += heat / 20f / cob.seedPositions.Length;
+
+            if (RngChance(heat * heat * 0.2f)) {
+                var closest = cob.seedPositions.Enumerate()
+                                               .Where(seed => burns[seed.Index] == 0)
+                                               .OrderByDescending(seed => (cob.SeedWorldPos(i) - cob.SeedWorldPos(seed.Index)).sqrMagnitude)
+                                               .FirstOrDefault();
+                if (closest != default) {
+                    burns[closest.Index] += 0.01f;
+                }
+            }
+
+            // Vfx
+            if (RngChance(heat * 0.2f)) {
+                cob.room.AddObject(new LavaFireSprite(cob.SeedWorldCenter(i) + Random.insideUnitCircle * 2, true));
             }
         }
     }
@@ -872,6 +999,33 @@ static class HeatHooks
     {
         orig(self, sLeaser, rCam, timeStacker, camPos);
 
-        // TODO blacken cob gradually
+        self.ApplyPalette(sLeaser, rCam, rCam.currentPalette);
+
+        for (int i = 0; i < self.seedPositions.Length; i++) {
+            float burn = self.SeedBurns()[i];
+
+            for (int s = 0; s < 3; s++) {
+                float add = s == 2 ? 0 : 0.08f * Mathf.Sin(0.2941f * Mathf.PI * (i * self.seedPositions.Length + s));
+
+                Color color = Color.Lerp(a: sLeaser.sprites[self.SeedSprite(i, s)].color,
+                                         b: rCam.currentPalette.blackColor,
+                                         t: burn * burn + add);
+
+                sLeaser.sprites[self.SeedSprite(i, s)].color = color;
+                sLeaser.sprites[self.SeedSprite(i, s)].scale *= Mathf.Lerp(1, 0.85f, burn);
+            }
+        }
+
+        for (int i = 0; i < 2; i++) {
+            var mesh = (TriangleMesh)sLeaser.sprites[self.ShellSprite(i)];
+
+            for (int v = 0; v < mesh.verticeColors.Length; v++) {
+                Color color = Color.Lerp(a: mesh.verticeColors[v],
+                                     b: rCam.currentPalette.blackColor,
+                                     t: self.open - 1f);
+
+                mesh.verticeColors[v] = color;
+            }
+        }
     }
 }

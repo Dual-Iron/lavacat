@@ -82,16 +82,9 @@ static class Extensions
 
     // -- Math --
 
-    public static float Rng(int from, int to) => Random.Range(from, to);
+    public static int RngInt(int from, int to) => Random.Range(from, to);
     public static float Rng(float from, float to) => Mathf.Lerp(from, to, Random.value * 0.999999f);
     public static bool RngChance(float percent) => Random.value < percent;
-    public static Vector2 RngUnitVec() => RWCustom.Custom.RNV();
-    public static T RandomElement<T>(this T[] array) => array[Random.Range(0, array.Length)];
-
-    public static Vector2 RandomPositionInChunk(this BodyChunk chunk, float distanceMultiplier = 1f)
-    {
-        return chunk.pos + Random.insideUnitCircle * chunk.rad * distanceMultiplier;
-    }
 
     public static bool MagnitudeLt(this Vector2 vec, float operand) => vec.sqrMagnitude < operand * operand;
     public static bool MagnitudeGt(this Vector2 vec, float operand) => vec.sqrMagnitude > operand * operand;
@@ -166,17 +159,77 @@ static class Extensions
         }
     }
 
+    public static T RandomElement<T>(this T[] array) => array[Random.Range(0, array.Length)];
+
     public static IEnumerable<Indexed<T>> Enumerate<T>(this IEnumerable<T> source)
     {
         int i = -1;
-        foreach (var item in source) {
-            yield return new Indexed<T> { Value = item, Index = ++i };
+        foreach (var value in source) {
+            yield return new(value, ++i);
         }
     }
 }
 
-public struct Indexed<T>
+public static class MathExt
 {
-    public T Value;
-    public int Index;
+    public static float Pow(this float f, float pow) => Mathf.Pow(f, pow);
+    public static float Sqrt(this float f) => Mathf.Sqrt(f);
+    public static float Max(this float f, float other) => Mathf.Max(f, other);
+    public static float Min(this float f, float other) => Mathf.Min(f, other);
+    public static float Abs(this float f) => Mathf.Abs(f);
+    public static float ClampUnit(this float f) => Mathf.Clamp01(f);
+    public static float Clamp(this float f, float min, float max) => Mathf.Clamp(f, min, max);
+}
+
+public readonly struct Indexed<T> : System.IEquatable<Indexed<T>>
+{
+    public Indexed(T value, int index)
+    {
+        this.value = value;
+        this.index = index;
+        assigned = true;
+    }
+
+    private readonly bool assigned;
+    private readonly T value;
+    private readonly int index;
+
+    public readonly T Value => assigned ? value : throw new System.InvalidOperationException("Null");
+    public readonly int Index => assigned ? index : throw new System.InvalidOperationException("Null");
+
+    public override bool Equals(object obj)
+    {
+        return obj is Indexed<T> indexed && Equals(indexed);
+    }
+
+    public bool Equals(Indexed<T> other)
+    {
+        return assigned == other.assigned &&
+               EqualityComparer<T>.Default.Equals(value, other.value) &&
+               index == other.index;
+    }
+
+    public override int GetHashCode()
+    {
+        int hashCode = -854830473;
+        hashCode = hashCode * -1521134295 + assigned.GetHashCode();
+        hashCode = hashCode * -1521134295 + EqualityComparer<T>.Default.GetHashCode(value);
+        hashCode = hashCode * -1521134295 + index.GetHashCode();
+        return hashCode;
+    }
+
+    public override string ToString()
+    {
+        return assigned ? $"[{index}] = {value}" : "<default>";
+    }
+
+    public static bool operator ==(Indexed<T> left, Indexed<T> right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(Indexed<T> left, Indexed<T> right)
+    {
+        return !(left == right);
+    }
 }

@@ -23,9 +23,6 @@ static class PlayerHooks
         On.Room.AddObject += Room_AddObject;
         On.Player.Update += Player_Update;
 
-        // Player doesn't really take damage while hot
-        On.Creature.Violence += Creature_Violence;
-
         // Reduce water droplet spawns
         On.Creature.TerrainImpact += Creature_TerrainImpact;
 
@@ -171,10 +168,10 @@ static class PlayerHooks
             player.playerState.foodInStomach = FloorToInt(player.MaxFoodInStomach * Clamp01(temperature));
         }
 
-        player.eatExternalFoodSourceCounter = 20;
         player.dontEatExternalFoodSourceCounter = 20;
 
-        if (player.handOnExternalFoodSource is Vector2 v && (player.firstChunk.pos - v).MagnitudeGt(35)) {
+        if (player.eatExternalFoodSourceCounter < 20) {
+            player.eatExternalFoodSourceCounter = 20;
             player.handOnExternalFoodSource = null;
         }
 
@@ -218,35 +215,6 @@ static class PlayerHooks
     }
 
     // Balance changes
-
-    private static void Creature_Violence(On.Creature.orig_Violence orig, Creature crit, BodyChunk source, Vector2? directionAndMomentum, BodyChunk hitChunk, PhysicalObject.Appendage.Pos hitAppendage, Creature.DamageType type, float damage, float stunBonus)
-    {
-        if (crit is Player p && p.IsLavaCat()) {
-            float damageOriginal = damage;
-
-            if (p.Temperature() > 0.5f) {
-                float reduction = p.Temperature() * 0.6f;
-                damage *= 1 - reduction;
-                stunBonus *= 1 - reduction;
-            }
-
-            p.Temperature() -= damageOriginal * 0.1f;
-
-            // bday
-            for (int i = 0; i < 30 + 50 * damage + 0.5f * stunBonus; i++) {
-                Vector2 pos = hitChunk.pos + Random.insideUnitCircle * hitChunk.rad * 0.5f;
-                p.room.AddObject(new MysteriousDust() {
-                    pos = pos,
-                    lastPos = pos,
-                    vel = directionAndMomentum is Vector2 vec
-                            ? -5 * vec + -5 * Random.insideUnitCircle * vec.magnitude
-                            : Random.insideUnitCircle * 30
-                });
-            }
-        }
-
-        orig(crit, source, directionAndMomentum, hitChunk, hitAppendage, type, damage, stunBonus);
-    }
 
     private static void Creature_TerrainImpact(On.Creature.orig_TerrainImpact orig, Creature self, int chunk, RWCustom.IntVector2 direction, float speed, bool firstContact)
     {
