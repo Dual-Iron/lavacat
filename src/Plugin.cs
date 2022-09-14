@@ -19,10 +19,11 @@ sealed class Plugin : BaseUnityPlugin
         PlayerManager.RegisterCharacter(Character);
 
         try {
+            MenuHooks.Apply();
             PlayerHooks.Apply();
             HeatHooks.Apply();
+            ObjectHooks.Apply();
             OracleHooks.Apply();
-            MenuHooks.Apply();
         }
         catch (Exception e) {
             Logger.LogError(e);

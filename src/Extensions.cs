@@ -69,6 +69,44 @@ static class Extensions
         }
     }
 
+    public static HeatProperties HeatProperties(this PhysicalObject self)
+    {
+        static HeatProperties Inedible(float conductivity) => new() { Conductivity = conductivity };
+        static HeatProperties Edible(float conductivity) => new() { Conductivity = conductivity, IsFood = true };
+
+        return self switch {
+            IPlayerEdible or WaterNut or FlyLure => Edible(0.2f),
+            Spear => Inedible(0.50f),
+            Rock => Inedible(0.05f),
+            Player => Inedible(0.02f),
+            DataPearl => Inedible(0.07f),
+            Creature => Inedible(0.07f),
+            SeedCob => Inedible(0.05f),
+            _ => Inedible(0.025f),
+        };
+    }
+
+    public static void EqualizeHeat(this PhysicalObject self, PhysicalObject other, float speed = 0.05f, bool losePlayerHeat = false)
+    {
+        if (speed <= 0 || self == other) return;
+
+        // Lighter objects should lose heat faster than heavier objects.
+        float massRatio = other.TotalMass / (other.TotalMass + self.TotalMass);
+        float conductivity = HeatProperties(self).Conductivity;
+        float heatFlow = other.Temperature() - self.Temperature();
+
+        // LavaCat can't be cooled down by other objects
+        bool canSelfCool = losePlayerHeat || !(self is Player p && p.IsLavaCat());
+        bool canOtherCool = losePlayerHeat || !(other is Player p2 && p2.IsLavaCat());
+
+        if (canSelfCool || heatFlow > 0)
+            self.Temperature() += heatFlow * conductivity * speed * massRatio;
+
+        if (canOtherCool || heatFlow < 0)
+            other.Temperature() -= heatFlow * conductivity * speed * (1 - massRatio);
+    }
+
+
     public static void BurstIntoFlame(this PhysicalObject o)
     {
         for (int i = 0; i < 10 + o.firstChunk.rad; i++) {
