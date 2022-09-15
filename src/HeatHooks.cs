@@ -368,8 +368,6 @@ static class HeatHooks
                 var resist = Mathf.Max(0.5f, crit.Template.baseStunResistance);
                 var diff = grasp.grabbed.Temperature() - crit.Temperature();
                 if (diff > 0.1f && RngChance(diff * diff / resist)) {
-                    Fx(grasp.grabbedChunk, diff * 0.5f);
-
                     crit.abstractCreature.AvoidsHeat() = true;
                     crit.ReleaseGrasp(grasp.graspUsed);
                     crit.Stun((int)(16 * diff));

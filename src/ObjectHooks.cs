@@ -52,6 +52,8 @@ static class ObjectHooks
         On.ExplosiveSpear.Update += ExplosiveSpear_Update;
         On.ScavengerBomb.Update += ScavengerBomb_Update;
 
+        On.WormGrass.Worm.Attached += Worm_Attached;
+
         On.VultureGrub.Update += VultureGrub_Update;
 
         On.SeedCob.Update += SeedCob_Update;
@@ -347,6 +349,27 @@ static class ObjectHooks
         if (self.Temperature() > 0.25f) {
             self.burn = Rng(0.8f, 1);
             self.room.PlaySound(SoundID.Fire_Spear_Ignite, self.firstChunk, false, 0.5f, 1.4f);
+        }
+    }
+
+    // Wormgrass
+
+    private static void Worm_Attached(On.WormGrass.Worm.orig_Attached orig, UpdatableAndDeletable self)
+    {
+        orig(self);
+
+        if (self is not WormGrass.Worm worm || worm.attachedChunk?.owner == null) {
+            return;
+        }
+
+        if (RngChance(worm.attachedChunk.owner.Temperature() * 0.2f)) {
+            worm.attachedChunk.owner.Temperature() *= 0.995f;
+
+            worm.vel *= -0.5f;
+            worm.excitement = 0f;
+            worm.focusCreature = null;
+            worm.dragForce = 0f;
+            worm.attachedChunk = null;
         }
     }
 
