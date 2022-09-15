@@ -167,11 +167,11 @@ static class HeatHooks
             if (progress >= 1f && isFood) {
                 progress = 0;
 
-                player.SessionRecord.AddEat(o);
+                player.SessionRecord?.AddEat(o);
                 o.Destroy();
                 o.BurstIntoFlame();
 
-                player.TemperatureChange() += o.TotalMass + 0.005f;
+                player.TemperatureChange() += o.FoodHeat();
             }
 
             if (progress > 1/4f) {
@@ -190,7 +190,7 @@ static class HeatHooks
                         LavaFireSprite particle = new(o.firstChunk.pos + Random.insideUnitCircle * o.firstChunk.rad * 0.5f, foreground: RngChance(0.50f));
                         particle.vel.x *= 0.5f;
                         particle.vel.y *= 1.5f;
-                        particle.lifeTime += (int)(progress * 80);
+                        particle.lifeTime += (int)(progress * 40);
                         player.room.AddObject(particle);
                     }
                 }

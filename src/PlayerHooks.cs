@@ -8,6 +8,9 @@ static class PlayerHooks
 {
     public static void Apply()
     {
+        // Fix arena scoring
+        On.ArenaGameSession.ScoreOfPlayer += ArenaGameSession_ScoreOfPlayer;
+
         // Prevent the silly super-jump when holding heavy objects
         On.Player.Jump += Player_Jump;
         On.Player.HeavyCarry += Player_HeavyCarry;
@@ -40,6 +43,26 @@ static class PlayerHooks
         On.PlayerGraphics.ApplyPalette += PlayerGraphics_ApplyPalette;
         On.PlayerGraphics.DrawSprites += PlayerGraphics_DrawSprites;
         On.PlayerGraphics.Update += PlayerGraphics_Update;
+    }
+
+    private static int ArenaGameSession_ScoreOfPlayer(On.ArenaGameSession.orig_ScoreOfPlayer orig, ArenaGameSession self, Player player, bool inHands)
+    {
+        if (player != null && player.IsLavaCat()) {
+            float temperatureTotal = player.Temperature();
+
+            if (inHands) {
+                foreach (var grasp in player.grasps) {
+                    if (grasp?.grabbed != null) {
+                        temperatureTotal += grasp.grabbed.FoodHeat();
+                    }
+                }
+            }
+
+            int foodScoreTotal = (int)(temperatureTotal * 10) * self.arenaSitting.gameTypeSetup.foodScore;
+
+            return orig(self, player, false) + foodScoreTotal;
+        }
+        return orig(self, player, inHands);
     }
 
     static bool jumping = false;

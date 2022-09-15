@@ -32,6 +32,11 @@ static class Extensions
         return Color.Lerp(PlayerManager.GetSlugcatColor(player), gray, 1 - temp);
     }
 
+    public static float FoodHeat(this PhysicalObject o)
+    {
+        return o.HeatProperties().IsFood ? o.TotalMass + 0.005f : 0;
+    }
+
     static T Instance<T>(this Room room, System.Func<Room, T> factory) where T : UpdatableAndDeletable
     {
         var instance = room.updateList.OfType<T>().FirstOrDefault();
@@ -113,7 +118,7 @@ static class Extensions
             LavaFireSprite particle = new(o.firstChunk.pos + Random.insideUnitCircle * o.firstChunk.rad * 0.8f, foreground: RngChance(0.5f));
             particle.vel.x *= 1.5f;
             particle.vel.y *= 2f;
-            particle.lifeTime += 80;
+            particle.lifeTime += 20;
             o.room.AddObject(particle);
         }
     }

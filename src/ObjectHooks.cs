@@ -551,6 +551,19 @@ static class ObjectHooks
     {
         orig(self, sLeaser, rCam, timeStacker, camPos);
 
-        // TODO
+        for (int i = 0; i < sLeaser.sprites.Length; i++) {
+            sLeaser.sprites[i].isVisible = false;
+        }
+
+        sLeaser.sprites[self.HeadSprite].isVisible = true;
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 4; j++) {
+                sLeaser.sprites[self.LegSprite(i, j, 0)].isVisible = true; // first segment from body
+                sLeaser.sprites[self.LegSprite(i, j, 1)].isVisible = true; // second segment
+                sLeaser.sprites[self.LegSprite(i, j, 2)].isVisible = true; // third segment
+
+                // they are just sprites stretched to reach the next segment
+            }
+        }
     }
 }
