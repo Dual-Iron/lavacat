@@ -167,6 +167,7 @@ static class HeatHooks
             if (progress >= 1f && isFood) {
                 progress = 0;
 
+                player.SessionRecord.AddEat(o);
                 o.Destroy();
                 o.BurstIntoFlame();
 

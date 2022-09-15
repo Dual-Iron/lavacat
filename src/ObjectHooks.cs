@@ -56,6 +56,9 @@ static class ObjectHooks
 
         On.SeedCob.Update += SeedCob_Update;
         On.SeedCob.DrawSprites += SeedCob_DrawSprites;
+
+        On.BigSpider.Update += BigSpider_Update;
+        On.BigSpiderGraphics.DrawSprites += BigSpiderGraphics_DrawSprites;
     }
 
     private static void Fly_Update(On.Fly.orig_Update orig, Fly fly, bool eu)
@@ -477,18 +480,21 @@ static class ObjectHooks
         var burns = cob.SeedBurns();
 
         // Heat up nearby objects while hot
-        if (temp > 0.1f && burnt)
-        {
-            foreach (var obj in cob.room.physicalObjects[cob.collisionLayer])
-            {
-                foreach (var chunk in obj.bodyChunks)
-                {
-                    Vector2 closest = Custom.ClosestPointOnLineSegment(cob.bodyChunks[0].pos, cob.bodyChunks[1].pos, chunk.pos);
-                    float sqDist = (chunk.pos - closest).sqrMagnitude;
+        if (temp > 0.1f && burnt) {
+            foreach (var list in cob.room.physicalObjects)
+                foreach (var obj in list) {
+                    foreach (var chunk in obj.bodyChunks) {
+                        Vector2 closest = Custom.ClosestPointOnLineSegment(cob.bodyChunks[0].pos, cob.bodyChunks[1].pos, chunk.pos);
+                        float sqDist = (chunk.pos - closest).sqrMagnitude;
+                        float speed = 0.25f * Mathf.InverseLerp(50 * 50, 5 * 5, sqDist);
 
-                    cob.EqualizeHeat(obj, speed: 0.25f * Mathf.InverseLerp(50 * 50, 5 * 5, sqDist));
+                        cob.EqualizeHeat(obj, speed);
+
+                        if (speed > 0 && obj is Player p) {
+                            p.SessionRecord.AddEat(cob);
+                        }
+                    }
                 }
-            }
         }
 
         // Randomly ignite seeds while hot
@@ -582,5 +588,17 @@ static class ObjectHooks
                 mesh.verticeColors[v] = color;
             }
         }
+    }
+
+    private static void BigSpider_Update(On.BigSpider.orig_Update orig, BigSpider self, bool eu)
+    {
+        orig(self, eu);
+    }
+
+    private static void BigSpiderGraphics_DrawSprites(On.BigSpiderGraphics.orig_DrawSprites orig, BigSpiderGraphics self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
+    {
+        orig(self, sLeaser, rCam, timeStacker, camPos);
+
+        // TODO
     }
 }
