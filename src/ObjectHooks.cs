@@ -65,27 +65,22 @@ static class ObjectHooks
     {
         orig(fly, eu);
 
-        if (fly.room != null)
-        {
-            if (fly.Temperature() > 0.1f)
-            {
+        if (fly.room != null) {
+            if (fly.Temperature() > 0.1f) {
                 fly.Die();
                 fly.bites = Mathf.Min(fly.bites, 2);
             }
-            if (fly.Temperature() > 0.3f)
-            {
+            if (fly.Temperature() > 0.3f) {
                 fly.bites = Mathf.Min(fly.bites, 1);
             }
-            if (fly.Temperature() > 0.5f)
-            {
+            if (fly.Temperature() > 0.5f) {
                 fly.Destroy();
                 fly.BurstIntoFlame();
             }
 
             int particleCount = (int)Rng(0, fly.Temperature() * 5);
 
-            for (int i = 0; i < particleCount; i++)
-            {
+            for (int i = 0; i < particleCount; i++) {
                 fly.room.AddObject(new LavaFireSprite(fly.firstChunk.pos + Random.insideUnitCircle * 2, foreground: RngChance(0.5f)));
             }
         }
@@ -112,21 +107,18 @@ static class ObjectHooks
 
         ref float temp = ref spear.Temperature();
 
-        if (spear.stuckInWall != null)
-        {
+        if (spear.stuckInWall != null) {
             temp *= 0.9f;
         }
 
-        if (spear.room != null && FireParticleChance(temp))
-        {
+        if (spear.room != null && FireParticleChance(temp)) {
             LavaFireSprite sprite = new(spear.firstChunk.pos + Random.insideUnitCircle * 2 + spear.rotation * Rng(-halfLength, halfLength));
             sprite.life *= 0.7f;
             spear.room.AddObject(sprite);
         }
 
         // Smoky tip
-        if (temp > 0.1f && FireParticleChance(temp))
-        {
+        if (temp > 0.1f && FireParticleChance(temp)) {
             Color fireColor = LavaColor.rgb * temp * temp;
 
             spear.WispySmoke().Emit(spear.firstChunk.pos + spear.rotation * halfLength, new Vector2(0, 0.5f), fireColor);
@@ -137,8 +129,7 @@ static class ObjectHooks
     {
         orig(self, sLeaser, rCam, timeStacker, camPos);
 
-        if (self.blink <= 0)
-        {
+        if (self.blink <= 0) {
             sLeaser.sprites[0].color = HeatedBlackColor(self.color.HSL().lightness, self.Temperature()).rgb;
         }
     }
@@ -149,8 +140,7 @@ static class ObjectHooks
 
         self.buoyancy = 0.4f + 0.6f * self.Temperature();
 
-        if (self.room != null && FireParticleChance(self.Temperature()))
-        {
+        if (self.room != null && FireParticleChance(self.Temperature())) {
             self.room.AddObject(new LavaFireSprite(self.firstChunk.pos + Random.insideUnitCircle * 3));
         }
     }
@@ -161,8 +151,7 @@ static class ObjectHooks
 
         HSLColor color = HeatedBlackColor(self.color.HSL().lightness, self.Temperature());
 
-        if (self.blink <= 0)
-        {
+        if (self.blink <= 0) {
             sLeaser.sprites[0].color = color.rgb;
 
             color.saturation *= 0.5f;
@@ -181,8 +170,7 @@ static class ObjectHooks
 
         float temp = self.Temperature();
 
-        if (self.lightSource != null)
-        {
+        if (self.lightSource != null) {
             self.lightSource.color = Color.Lerp(new(1f, 0.2f, 0f), lanternHot, temp);
             self.lightSource.setRad += 250f * temp;
         }
@@ -220,13 +208,10 @@ static class ObjectHooks
 
     private static void Creature_Blind(On.Creature.orig_Blind orig, Creature self, int blnd)
     {
-        if (blinding != null)
-        {
-            if (blinding.Temperature() > 0.5f)
-            {
+        if (blinding != null) {
+            if (blinding.Temperature() > 0.5f) {
                 int stun = blnd / 2;
-                if (blinding.thrownBy == self)
-                {
+                if (blinding.thrownBy == self) {
                     stun /= 2;
                 }
                 self.Stun(stun);
@@ -244,8 +229,7 @@ static class ObjectHooks
     {
         orig(self, eu);
 
-        if (self.Temperature() > 0.49f)
-        {
+        if (self.Temperature() > 0.49f) {
             self.Explode();
         }
     }
@@ -257,8 +241,7 @@ static class ObjectHooks
         self.ApplyPalette(sLeaser, rCam, rCam.currentPalette);
 
         int l = self.dots.Length;
-        for (int i = 0; i < l; i++)
-        {
+        for (int i = 0; i < l; i++) {
             sLeaser.sprites[3 + i].color = Color.Lerp(sLeaser.sprites[3 + i].color, LavaColor.rgb, self.Temperature() / 0.4f);
             sLeaser.sprites[3 + i + l].color = Color.Lerp(sLeaser.sprites[3 + i + l].color, LavaColor.rgb, self.Temperature() / 0.4f);
         }
@@ -270,12 +253,10 @@ static class ObjectHooks
 
         float temp = nest.Temperature();
 
-        if (temp > 0)
-        {
+        if (temp > 0) {
             nest.angry = Mathf.Clamp01(nest.angry - temp);
         }
-        if (temp > 0.2f && RngChance(temp * temp))
-        {
+        if (temp > 0.2f && RngChance(temp * temp)) {
             var pos = nest.firstChunk.pos + nest.firstChunk.rad * Random.insideUnitCircle * 0.5f;
             var left = Custom.RotateAroundOrigo(nest.rotation, -1 * Rng(80, 100));
             var right = Custom.RotateAroundOrigo(nest.rotation, 1 * Rng(80, 100));
@@ -283,13 +264,11 @@ static class ObjectHooks
             nest.WispySmoke(0).Emit(pos, left * Rng(1, 3 * temp), LavaColor.rgb);
             nest.WispySmoke(1).Emit(pos, right * Rng(1, 3 * temp), LavaColor.rgb);
         }
-        if (temp > 0.6f && RngChance(0.05f))
-        {
+        if (temp > 0.6f && RngChance(0.05f)) {
             nest.Pacified = true;
             nest.room.PlaySound(SoundID.Firecracker_Burn, nest.firstChunk.pos, 0.15f, 1.4f);
         }
-        if (temp > 0.7f)
-        {
+        if (temp > 0.7f) {
             nest.ReleaseBees();
         }
     }
@@ -300,8 +279,7 @@ static class ObjectHooks
     {
         orig(self, sLeaser, rCam, palette);
 
-        if (self.AbstractPearl.dataPearlType == BurntPearl)
-        {
+        if (self.AbstractPearl.dataPearlType == BurntPearl) {
             self.color = DataPearl.UniquePearlMainColor(BurntPearl);
             self.highlightColor = DataPearl.UniquePearlHighLightColor(BurntPearl);
         }
@@ -319,8 +297,7 @@ static class ObjectHooks
 
     private static void DataPearl_DrawSprites(On.DataPearl.orig_DrawSprites orig, DataPearl self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
     {
-        if (self.AbstractPearl.dataPearlType == BurntPearl)
-        {
+        if (self.AbstractPearl.dataPearlType == BurntPearl) {
             self.glimmer = self.lastGlimmer = 0;
         }
 
@@ -334,8 +311,7 @@ static class ObjectHooks
         sLeaser.sprites[1].color = Color.Lerp(sLeaser.sprites[1].color, color, percent);
         sLeaser.sprites[2].color = Color.Lerp(sLeaser.sprites[2].color, Color.white, percent);
 
-        if (self.AbstractPearl.dataPearlType != BurntPearl && self.Temperature() > 0.7f)
-        {
+        if (self.AbstractPearl.dataPearlType != BurntPearl && self.Temperature() > 0.7f) {
             // Erase pearl data if too hot
             self.AbstractPearl.dataPearlType = BurntPearl;
             self.ApplyPalette(sLeaser, rCam, rCam.currentPalette);
@@ -348,8 +324,7 @@ static class ObjectHooks
     {
         orig(self, eu);
 
-        if (self.Temperature() > 0.25f && self.fuseCounter == 0)
-        {
+        if (self.Temperature() > 0.25f && self.fuseCounter == 0) {
             self.Ignite();
             self.fuseCounter += 20;
         }
@@ -359,8 +334,7 @@ static class ObjectHooks
     {
         orig(self, eu);
 
-        if (self.Temperature() > 0.25f && self.igniteCounter == 0)
-        {
+        if (self.Temperature() > 0.25f && self.igniteCounter == 0) {
             self.Ignite();
             self.explodeAt += 20;
         }
@@ -370,8 +344,7 @@ static class ObjectHooks
     {
         orig(self, eu);
 
-        if (self.Temperature() > 0.25f)
-        {
+        if (self.Temperature() > 0.25f) {
             self.burn = Rng(0.8f, 1);
             self.room.PlaySound(SoundID.Fire_Spear_Ignite, self.firstChunk, false, 0.5f, 1.4f);
         }
@@ -383,13 +356,11 @@ static class ObjectHooks
     {
         orig(self, eu);
 
-        if (self.Temperature() > 0.05f)
-        {
+        if (self.Temperature() > 0.05f) {
             self.InitiateSignalCountDown();
         }
 
-        if (self.Temperature() > 0.25f)
-        {
+        if (self.Temperature() > 0.25f) {
             self.Die();
         }
     }
@@ -415,8 +386,7 @@ static class ObjectHooks
             cob.open = open;
 
         // Curl shell extra when burnt
-        if (cob.AbstractCob.opened)
-        {
+        if (cob.AbstractCob.opened) {
             float destOpen = temp * 1.35f;
 
             if (cob.open < destOpen)
@@ -424,30 +394,24 @@ static class ObjectHooks
         }
 
         // Open when too hot
-        if (temp > 0.20f)
-        {
+        if (temp > 0.20f) {
             cob.Open();
         }
 
         // Smoky!
-        if (temp > 0.1f)
-        {
+        if (temp > 0.1f) {
             cob.WispySmoke(0).Emit(cob.firstChunk.pos, new Vector2(0, 1), Color.black);
         }
 
         // Let lavacat players burn cobs
-        if (!burnt && cob.Temperature() < 0.45f)
-        {
-            foreach (var player in cob.room.game.Players)
-            {
-                if (player.realizedObject is not Player p || p.room != cob.room || p.stun > 0 || p.FreeHand() == -1 || !p.IsLavaCat())
-                {
+        if (!burnt && cob.Temperature() < 0.45f) {
+            foreach (var player in cob.room.game.Players) {
+                if (player.realizedObject is not Player p || p.room != cob.room || p.stun > 0 || p.FreeHand() == -1 || !p.IsLavaCat()) {
                     continue;
                 }
 
                 Vector2 closest = Custom.ClosestPointOnLineSegment(cob.bodyChunks[0].pos, cob.bodyChunks[1].pos, p.firstChunk.pos);
-                if ((closest - p.firstChunk.pos).MagnitudeGt(22))
-                {
+                if ((closest - p.firstChunk.pos).MagnitudeGt(22)) {
                     continue;
                 }
 
@@ -457,8 +421,7 @@ static class ObjectHooks
                 p.Blink(5);
                 p.BlindTimer() = 10;
 
-                if (p.room.game.cameras[0].hud.foodMeter != null)
-                {
+                if (p.room.game.cameras[0].hud.foodMeter != null) {
                     p.room.game.cameras[0].hud.foodMeter.visibleCounter = 200;
                 }
 
@@ -498,26 +461,22 @@ static class ObjectHooks
         }
 
         // Randomly ignite seeds while hot
-        if (RngChance((temp - 0.2f) * 0.06f))
-        {
+        if (RngChance((temp - 0.2f) * 0.06f)) {
             cob.SeedBurns()[RngInt(0, cob.seedPositions.Length)] += 0.01f;
         }
 
         // Burn seeds
-        for (int i = 0; i < cob.seedPositions.Length; i++)
-        {
+        for (int i = 0; i < cob.seedPositions.Length; i++) {
             ref float burn = ref cob.SeedBurns()[i];
 
-            if (burn == 0 || burn >= 1f)
-            {
+            if (burn == 0 || burn >= 1f) {
                 continue;
             }
 
             // If dead, this cob should burn extremely briefly
             burn += cob.AbstractCob.dead ? 1 / 80f : 1 / 400f;
 
-            if (burn > 1f)
-            {
+            if (burn > 1f) {
                 burn = 1f;
 
                 Vector2 rot = 0.35f * (Custom.PerpendicularVector(cob.bodyChunks[0].pos, cob.bodyChunks[1].pos) * cob.seedPositions[i].x + Random.insideUnitCircle).normalized;
@@ -532,21 +491,18 @@ static class ObjectHooks
 
             temp += heat / 20f / cob.seedPositions.Length;
 
-            if (RngChance(heat * heat * 0.2f))
-            {
+            if (RngChance(heat * heat * 0.2f)) {
                 var closest = cob.seedPositions.Enumerate()
                                                .Where(seed => burns[seed.Index] == 0)
                                                .OrderByDescending(seed => (cob.SeedWorldPos(i) - cob.SeedWorldPos(seed.Index)).sqrMagnitude)
                                                .FirstOrDefault();
-                if (closest != default)
-                {
+                if (closest != default) {
                     burns[closest.Index] += 0.01f;
                 }
             }
 
             // Vfx
-            if (RngChance(heat * 0.2f))
-            {
+            if (RngChance(heat * 0.2f)) {
                 cob.room.AddObject(new LavaFireSprite(cob.SeedWorldCenter(i) + Random.insideUnitCircle * 2, true));
             }
         }
@@ -558,12 +514,10 @@ static class ObjectHooks
 
         self.ApplyPalette(sLeaser, rCam, rCam.currentPalette);
 
-        for (int i = 0; i < self.seedPositions.Length; i++)
-        {
+        for (int i = 0; i < self.seedPositions.Length; i++) {
             float burn = self.SeedBurns()[i];
 
-            for (int s = 0; s < 3; s++)
-            {
+            for (int s = 0; s < 3; s++) {
                 float add = s == 2 ? 0 : 0.08f * Mathf.Sin(0.2941f * Mathf.PI * (i * self.seedPositions.Length + s));
 
                 Color color = Color.Lerp(a: sLeaser.sprites[self.SeedSprite(i, s)].color,
@@ -575,12 +529,10 @@ static class ObjectHooks
             }
         }
 
-        for (int i = 0; i < 2; i++)
-        {
+        for (int i = 0; i < 2; i++) {
             var mesh = (TriangleMesh)sLeaser.sprites[self.ShellSprite(i)];
 
-            for (int v = 0; v < mesh.verticeColors.Length; v++)
-            {
+            for (int v = 0; v < mesh.verticeColors.Length; v++) {
                 Color color = Color.Lerp(a: mesh.verticeColors[v],
                                      b: rCam.currentPalette.blackColor,
                                      t: self.open - 1f);
