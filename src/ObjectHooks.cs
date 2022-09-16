@@ -1,4 +1,5 @@
-﻿using RWCustom;
+﻿using MonoMod.RuntimeDetour;
+using RWCustom;
 using System.Linq;
 using UnityEngine;
 using static LavaCat.Extensions;
@@ -34,6 +35,7 @@ static class ObjectHooks
         On.Lantern.Update += Lantern_Update;
         On.Lantern.DrawSprites += Lantern_DrawSprites;
 
+        new Hook(typeof(FlareBomb).GetProperty("LightIntensity").GetGetMethod(), GetLightIntensity);
         On.FlareBomb.Update += FlareBomb_Update;
         On.FlareBomb.DrawSprites += FlareBomb_DrawSprites;
         On.Creature.Blind += Creature_Blind;
@@ -191,14 +193,26 @@ static class ObjectHooks
 
     // Flarebombs
 
-    static FlareBomb blinding;
+    static float GetLightIntensity(System.Func<FlareBomb, float> orig, FlareBomb self)
+    {
+        if (self.Temperature() > 0.5f) {
+            return orig(self) * (self.Temperature() / 0.5f);
+        }
+        return orig(self);
+    }
+
+    static FlareBomb flare;
     private static void FlareBomb_Update(On.FlareBomb.orig_Update orig, FlareBomb self, bool eu)
     {
-        self.color = Color.Lerp(new Color(0.2f, 0, 1), LavaColor.rgb, Mathf.Sqrt(self.Temperature()));
+        float temp = self.Temperature();
 
-        blinding = self;
+        self.color = temp > 0.5f
+            ? Color.Lerp(LavaColor.rgb, Color.white, ((temp - 0.5f) / 0.5f).Pow(2))
+            : Color.Lerp(new Color(0.2f, 0, 1), LavaColor.rgb, temp / 0.5f);
+
+        flare = self;
         try { orig(self, eu); }
-        finally { blinding = null; }
+        finally { flare = null; }
     }
 
     private static void FlareBomb_DrawSprites(On.FlareBomb.orig_DrawSprites orig, FlareBomb self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
@@ -210,16 +224,15 @@ static class ObjectHooks
 
     private static void Creature_Blind(On.Creature.orig_Blind orig, Creature self, int blnd)
     {
-        if (blinding != null) {
-            if (blinding.Temperature() > 0.5f) {
+        if (flare != null) {
+            if (flare.Temperature() > 0.5f) {
                 int stun = blnd / 2;
-                if (blinding.thrownBy == self) {
+                if (flare.thrownBy == self) {
                     stun /= 2;
                 }
                 self.Stun(stun);
             }
-
-            blnd += (int)(blnd * blinding.Temperature());
+            blnd += (int)(blnd * flare.Temperature());
         }
 
         orig(self, blnd);
