@@ -34,7 +34,7 @@ static class Extensions
 
     public static float FoodHeat(this PhysicalObject o)
     {
-        return o.HeatProperties().IsFood ? o.TotalMass + 0.005f : 0;
+        return o.HeatProperties().IsEdible ? o.TotalMass + 0.005f : 0;
     }
 
     static T Instance<T>(this Room room, System.Func<Room, T> factory) where T : UpdatableAndDeletable
@@ -77,10 +77,12 @@ static class Extensions
     public static HeatProperties HeatProperties(this PhysicalObject self)
     {
         static HeatProperties Inedible(float conductivity) => new() { Conductivity = conductivity };
-        static HeatProperties Edible(float conductivity) => new() { Conductivity = conductivity, IsFood = true };
+        static HeatProperties Edible(float conductivity, float eatSpeed) => new() { Conductivity = conductivity, EatSpeed = eatSpeed };
 
         return self switch {
-            IPlayerEdible or WaterNut or FlyLure or BubbleGrass or Leech => Edible(0.2f),
+            IPlayerEdible or WaterNut or FlyLure or BubbleGrass or Leech => Edible(0.2f, 1f),
+            Spider => new HeatProperties { Conductivity = 0.15f, EatSpeed = 2f, DryTemp = 0 },
+
             Spear => Inedible(0.50f),
             Rock => Inedible(0.05f),
             Player => Inedible(0.02f),
@@ -116,9 +118,9 @@ static class Extensions
     }
 
 
-    public static void BurstIntoFlame(this PhysicalObject o)
+    public static void BurstIntoFlame(this PhysicalObject o, float intensity = 1f)
     {
-        for (int i = 0; i < 10 + o.firstChunk.rad; i++) {
+        for (int i = 0; i < 10 + o.firstChunk.rad * intensity; i++) {
             LavaFireSprite particle = new(o.firstChunk.pos + Random.insideUnitCircle * o.firstChunk.rad * 0.8f, foreground: RngChance(0.5f));
             particle.vel.x *= 1.5f;
             particle.vel.y *= 2f;

@@ -62,6 +62,7 @@ static class PlayerHooks
         // TODO fix leeches lagging behind player hand in water
         if (self.IsLavaCat()) return obj switch {
             BigSpider or Scavenger => (int)Player.ObjectGrabability.Drag,
+            Spider s => s.TotalMass > 0.11f ? (int)Player.ObjectGrabability.Drag : (int)Player.ObjectGrabability.OneHand,
             //Leech => (int)Player.ObjectGrabability.OneHand,
             _ => orig(self, obj),
         };

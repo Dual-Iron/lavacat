@@ -146,7 +146,7 @@ static class HeatHooks
 
         static bool CanHeat(Player p, PhysicalObject o)
         {
-            bool isFood = o.HeatProperties().IsFood;
+            bool isFood = o.HeatProperties().IsEdible;
             if (!isFood && o.Temperature() - p.Temperature() > -0.01f) {
                 return false;
             }
@@ -157,7 +157,7 @@ static class HeatHooks
         {
             ref float progress = ref player.HeatProgress();
 
-            bool isFood = o.HeatProperties().IsFood;
+            bool isFood = o.HeatProperties().IsEdible;
             if (progress >= 1f && isFood) {
                 progress = 0;
 
@@ -176,6 +176,8 @@ static class HeatHooks
 
                 // Show food bar for food items
                 if (isFood) {
+                    if (o is Creature c) c.Die();
+
                     if (player.abstractCreature.world.game.cameras[0].hud?.foodMeter != null)
                         player.abstractCreature.world.game.cameras[0].hud.foodMeter.visibleCounter = 200;
 
@@ -195,7 +197,9 @@ static class HeatHooks
             }
 
             if (CanHeat(player, o)) {
-                float progressTime = isFood ? 80 + 160 * o.TotalMass : 80;
+                float progressTime = isFood
+                    ? (80 + 160 * o.TotalMass) / o.HeatProperties().EatSpeed
+                    : 80;
                 progress += 1 / progressTime;
                 progress = Mathf.Clamp01(progress);
             }

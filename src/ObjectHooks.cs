@@ -1,5 +1,6 @@
 ﻿using MonoMod.RuntimeDetour;
 using RWCustom;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using static LavaCat.Extensions;
@@ -75,6 +76,8 @@ static class ObjectHooks
         On.ScavengerBomb.Update += ScavengerBomb_Update;
 
         On.WormGrass.Worm.Attached += Worm_Attached;
+
+        On.Spider.Update += Spider_Update;
 
         On.VultureGrub.Update += VultureGrub_Update;
 
@@ -406,6 +409,33 @@ static class ObjectHooks
             worm.focusCreature = null;
             worm.dragForce = 0f;
             worm.attachedChunk = null;
+        }
+    }
+
+    // Smol spiders
+
+    private static void Spider_Update(On.Spider.orig_Update orig, Spider self, bool eu)
+    {
+        orig(self, eu);
+
+        if (RngChance(self.Temperature() * 2)) {
+            self.room.AddObject(new LavaFireSprite(self.firstChunk.pos + Random.insideUnitCircle * self.firstChunk.rad * 1.15f, true));
+        }
+
+        if (self.Temperature() > 0.1f) {
+            self.Die();
+        }
+        if (self.Temperature() > 0.17f) {
+            self.deathSpasms = 0f;
+        }
+        if (self.Temperature() > 0.5f) {
+            foreach (var physob in self.room.physicalObjects[0]) {
+                Radiate(self, v => self.firstChunk.pos);
+            }
+
+            self.BurstIntoFlame(2);
+            self.abstractPhysicalObject.LoseAllStuckObjects();
+            self.Destroy();
         }
     }
 
