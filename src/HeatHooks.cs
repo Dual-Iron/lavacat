@@ -334,14 +334,16 @@ static class HeatHooks
         // Lavacat takes less damage and stun while hot
         if (crit is Player p && p.IsLavaCat()) {
             float damageOriginal = damage;
+            float reduction = p.Temperature() * 0.6f;
 
             if (p.Temperature() > 0.5f) {
-                float reduction = p.Temperature() * 0.6f;
                 damage *= 1 - reduction;
                 stunBonus *= 1 - reduction;
             }
 
             p.Temperature() -= damageOriginal * 0.05f;
+
+            Plugin.Logger.LogDebug($"LavaCat reduced {damageOriginal:0.00} damage to {damage * (1 - reduction):0.00}, then lost {damageOriginal * 5:0.00%} temperature");
         }
 
         orig(crit, source, directionAndMomentum, hitChunk, hitAppendage, type, damage, stunBonus);
