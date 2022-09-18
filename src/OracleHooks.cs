@@ -42,7 +42,7 @@ sealed class BurntPearlConvo : Conversation
         switch (oracle.State.totalPearlsBrought + oracle.State.miscPearlCounter) {
             case 0:
                 events.Add(new TextEvent(this, 0, oracle.Translate("Ah, you would like me to read this?"), 10));
-                events.Add(new TextEvent(this, 0, oracle.Translate("It's a bit ashy, but I will do my best. Hold on..."), 10));
+                events.Add(new TextEvent(this, 0, "It's a bit ashy, but I will do my best. Hold on...", 10));
                 break;
             case 1:
                 events.Add(new TextEvent(this, 0, oracle.Translate("Another pearl! You want me to read this one too? Just a moment..."), 10));

@@ -6,12 +6,14 @@ namespace LavaCat;
 
 static class ExtraData
 {
-    static readonly WeakTable<Player, PlayerData> plrData = new(_ => new PlayerData());
-    static readonly WeakTable<PlayerGraphics, PlayerGraphicsData> graphicsData = new(_ => new PlayerGraphicsData());
+    static readonly WeakTable<Player, PlayerData> plrData = new(_ => new());
+    static readonly WeakTable<PlayerGraphics, PlayerGraphicsData> graphicsData = new(_ => new());
 
-    static readonly WeakTable<AbstractPhysicalObject, ApoData> apoData = new(_ => new ApoData());
-    static readonly WeakTable<PhysicalObject, PoData> poData = new(_ => new PoData());
-    static readonly WeakTable<SeedCob, CobData> cobData = new(_ => new CobData());
+    static readonly WeakTable<AbstractPhysicalObject, ApoData> apoData = new(_ => new());
+    static readonly WeakTable<PhysicalObject, PoData> poData = new(_ => new());
+    static readonly WeakTable<SeedCob, CobData> cobData = new(_ => new());
+    static readonly WeakTable<BigSpider, BurnData> spiderData = new(_ => new());
+    static readonly WeakTable<Scavenger, BurnData> scavData = new(_ => new());
 
     public static ref float HeatProgress(this Player p) => ref plrData[p].eatProgress;
     public static ref int BlindTimer(this Player p) => ref plrData[p].blindTimer;
@@ -23,6 +25,8 @@ static class ExtraData
     public static ref float TemperatureChange(this PhysicalObject o) => ref poData[o].temperatureChange;
 
     public static float[] SeedBurns(this SeedCob o) => cobData[o].seedBurns ??= new float[o.seedPositions.Length];
+    public static ref float Burn(this BigSpider spider) => ref spiderData[spider].burn;
+    public static ref float Burn(this Scavenger scav) => ref scavData[scav].burn;
 
     public static ref int SteamSound(this PhysicalObject o) => ref poData[o].steamSound;
 
@@ -45,6 +49,11 @@ static class ExtraData
 sealed class CobData
 {
     public float[] seedBurns;
+}
+
+sealed class BurnData
+{
+    public float burn;
 }
 
 sealed class PlayerData

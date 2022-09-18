@@ -74,10 +74,10 @@ sealed class WispySmoke : MeshSmoke
         return new ThickSmokeSegmentFixed(fireColor);
     }
 
-    public void Emit(Vector2 addPos, Vector2 vel, Color fireColor)
+    public void Emit(Vector2 pos, Vector2 vel, Color fireColor)
     {
         this.fireColor = fireColor;
-        AddParticle(addPos, vel + Custom.RNV() * Random.value * 0.01f, ParticleLifeTime);
+        AddParticle(pos, vel + Custom.RNV() * Random.value * 0.01f, ParticleLifeTime);
     }
 
     sealed class ThickSmokeSegmentFixed : BombSmoke.ThickSmokeSegment

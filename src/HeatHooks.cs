@@ -5,12 +5,6 @@ using static LavaCat.Extensions;
 
 namespace LavaCat;
 
-struct HeatProperties
-{
-    public float Conductivity { get; set; }
-    public bool IsFood { get; set; }
-}
-
 static class HeatHooks
 {
     private static void UpdateWaterCollision(PhysicalObject o)
@@ -423,13 +417,17 @@ static class HeatHooks
 
             crit.Violence(null, null, chunk, null, Creature.DamageType.Explosion, damage, stunBonus);
 
-            if (crit.Template.smallCreature && temp > 0.25f) {
+            if (crit.Template.smallCreature && temp > 0.2f) {
                 crit.Die();
             }
         }
 
         static void Fx(BodyChunk chunk, float temp)
         {
+            if (temp >= chunk.owner.HeatProperties().DryTemp) {
+                return;
+            }
+
             Vector2 pos = chunk.pos + Random.insideUnitCircle * chunk.rad * 0.5f;
             Vector2 vel = new Vector2(0, 5) + Random.insideUnitCircle * 5;
             float intensity = 0.1f + 0.9f * temp;

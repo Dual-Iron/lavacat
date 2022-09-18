@@ -8,6 +8,10 @@ static class PlayerHooks
 {
     public static void Apply()
     {
+        // Fix grabbing food like spiders
+        On.Creature.Grab += Creature_Grab1;
+        On.Player.Grabability += Player_Grabability;
+
         // Fix arena scoring
         On.ArenaGameSession.ScoreOfPlayer += ArenaGameSession_ScoreOfPlayer;
 
@@ -43,6 +47,25 @@ static class PlayerHooks
         On.PlayerGraphics.ApplyPalette += PlayerGraphics_ApplyPalette;
         On.PlayerGraphics.DrawSprites += PlayerGraphics_DrawSprites;
         On.PlayerGraphics.Update += PlayerGraphics_Update;
+    }
+
+    private static bool Creature_Grab1(On.Creature.orig_Grab orig, Creature self, PhysicalObject obj, int graspUsed, int chunkGrabbed, Creature.Grasp.Shareability shareability, float dominance, bool overrideEquallyDominant, bool pacifying)
+    {
+        if (self is Player p && p.IsLavaCat() && obj is Scavenger) {
+            pacifying = false;
+        }
+        return orig(self, obj, graspUsed, chunkGrabbed, shareability, dominance, overrideEquallyDominant, pacifying);
+    }
+
+    private static int Player_Grabability(On.Player.orig_Grabability orig, Player self, PhysicalObject obj)
+    {
+        // TODO fix leeches lagging behind player hand in water
+        if (self.IsLavaCat()) return obj switch {
+            BigSpider or Scavenger => (int)Player.ObjectGrabability.Drag,
+            //Leech => (int)Player.ObjectGrabability.OneHand,
+            _ => orig(self, obj),
+        };
+        return orig(self, obj);
     }
 
     private static int ArenaGameSession_ScoreOfPlayer(On.ArenaGameSession.orig_ScoreOfPlayer orig, ArenaGameSession self, Player player, bool inHands)
@@ -214,7 +237,7 @@ static class PlayerHooks
         player.waterFriction = Lerp(0.96f, 0.8f, temperature);
         player.buoyancy = Lerp(0.3f, 1.1f, temperature);
 
-        // This cat doesn't breathe.
+        // self cat doesn't breathe.
         player.airInLungs = 1f;
         player.aerobicLevel = 0f;
 

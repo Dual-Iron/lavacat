@@ -21,6 +21,26 @@ static class ObjectHooks
                    );
     }
 
+    private static void Radiate(PhysicalObject emitter, System.Func<Vector2, Vector2> emitterPoint)
+    {
+        if (emitter?.room == null) return;
+
+        foreach (var list in emitter.room.physicalObjects)
+            foreach (var obj in list) {
+                foreach (var chunk in obj.bodyChunks) {
+                    Vector2 closest = emitterPoint(chunk.pos);
+                    float sqDist = (chunk.pos - closest).sqrMagnitude;
+                    float speed = 0.25f * Mathf.InverseLerp(50 * 50, 5 * 5, sqDist);
+
+                    emitter.EqualizeHeat(obj, speed);
+
+                    if (speed > 0 && obj is Player p && p.IsLavaCat()) {
+                        p.SessionRecord?.AddEat(emitter);
+                    }
+                }
+            }
+    }
+
     public static void Apply()
     {
         On.Fly.Update += Fly_Update;
@@ -63,6 +83,9 @@ static class ObjectHooks
 
         On.BigSpider.Update += BigSpider_Update;
         On.BigSpiderGraphics.DrawSprites += BigSpiderGraphics_DrawSprites;
+
+        On.Scavenger.Update += Scavenger_Update;
+        On.ScavengerGraphics.DrawSprites += ScavengerGraphics_DrawSprites;
     }
 
     private static void Fly_Update(On.Fly.orig_Update orig, Fly fly, bool eu)
@@ -339,7 +362,7 @@ static class ObjectHooks
     {
         orig(self, eu);
 
-        if (self.Temperature() > 0.25f && self.fuseCounter == 0) {
+        if (self.fuseCounter == 0 && self.Temperature() > 0.25f) {
             self.Ignite();
             self.fuseCounter += 20;
         }
@@ -349,7 +372,7 @@ static class ObjectHooks
     {
         orig(self, eu);
 
-        if (self.Temperature() > 0.25f && self.igniteCounter == 0) {
+        if (self.igniteCounter == 0 && self.Temperature() > 0.25f) {
             self.Ignite();
             self.explodeAt += 20;
         }
@@ -359,8 +382,8 @@ static class ObjectHooks
     {
         orig(self, eu);
 
-        if (self.Temperature() > 0.25f) {
-            self.burn = Rng(0.8f, 1);
+        if (self.burn == 0 && self.Temperature() > 0.25f) {
+            self.burn = Rng(0.5f, 1f);
             self.room.PlaySound(SoundID.Fire_Spear_Ignite, self.firstChunk, false, 0.5f, 1.4f);
         }
     }
@@ -480,20 +503,7 @@ static class ObjectHooks
 
         // Heat up nearby objects while hot
         if (temp > 0.1f && burnt) {
-            foreach (var list in cob.room.physicalObjects)
-                foreach (var obj in list) {
-                    foreach (var chunk in obj.bodyChunks) {
-                        Vector2 closest = Custom.ClosestPointOnLineSegment(cob.bodyChunks[0].pos, cob.bodyChunks[1].pos, chunk.pos);
-                        float sqDist = (chunk.pos - closest).sqrMagnitude;
-                        float speed = 0.25f * Mathf.InverseLerp(50 * 50, 5 * 5, sqDist);
-
-                        cob.EqualizeHeat(obj, speed);
-
-                        if (speed > 0 && obj is Player p) {
-                            p.SessionRecord.AddEat(cob);
-                        }
-                    }
-                }
+            Radiate(cob, chunkPos => Custom.ClosestPointOnLineSegment(cob.bodyChunks[0].pos, cob.bodyChunks[1].pos, chunkPos));
         }
 
         // Randomly ignite seeds while hot
@@ -578,27 +588,125 @@ static class ObjectHooks
         }
     }
 
-    private static void BigSpider_Update(On.BigSpider.orig_Update orig, BigSpider self, bool eu)
+    private static void BigSpider_Update(On.BigSpider.orig_Update orig, BigSpider bug, bool eu)
     {
-        orig(self, eu);
+        // TODO: un-lazy and emit fire particles only on top of the spider's sprites
+        orig(bug, eu);
+
+        ref float temp = ref bug.Temperature();
+        ref float burn = ref bug.Burn();
+
+        if (temp > 0.1f) {
+            bug.AI.behavior = BigSpiderAI.Behavior.Flee;
+            bug.runSpeed = 1.5f;
+
+            bug.WispySmoke().Emit(bug.firstChunk.pos, new(0, 1), Color.black);
+
+            if (bug.State.health > 0.8f && RngChance(temp * temp)) {
+                bug.room.PlaySound(SoundID.Big_Spider_Jump_Warning_Rustle, bug.mainBodyChunk, false, 0.8f, 1.25f);
+            }
+        }
+        
+        // Burn baby burn
+        if (temp > 0.18f) {
+            Radiate(bug, _ => bug.mainBodyChunk.pos);
+
+            burn += 1f / 40f / 10f;
+
+            float heat = 1 - (2 * burn - 1).Pow(2);
+
+            temp += heat / 60f;
+
+            if (bug.State.alive) {
+                bug.State.health = Mathf.Min(bug.State.health, (1 - burn) * (1 - burn));
+                bug.deathConvulsions = 1;
+            }
+
+            if (burn > 0.7f) {
+                bug.deathConvulsions = 0f;
+            }
+
+            int num = (int)Rng(0, heat * 16);
+            for (int i = 0; i < num; i++) {
+                BodyChunk chunk = bug.RandomChunk;
+
+                bug.room.AddObject(new LavaFireSprite(chunk.pos + Random.insideUnitCircle * chunk.rad, true));
+            }
+        }
     }
 
     private static void BigSpiderGraphics_DrawSprites(On.BigSpiderGraphics.orig_DrawSprites orig, BigSpiderGraphics self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
     {
-        orig(self, sLeaser, rCam, timeStacker, camPos);
+        self.ApplyPalette(sLeaser, rCam, rCam.currentPalette);
 
-        for (int i = 0; i < sLeaser.sprites.Length; i++) {
-            sLeaser.sprites[i].isVisible = false;
+        float shrivelUp = self.bug.Burn() * 0.8f;
+
+        for (int i = 0; i < self.legs.GetLength(0); i++) {
+            for (int j = 0; j < self.legs.GetLength(1); j++) {
+                Vector2 connectPos = Vector2.Lerp(self.bug.mainBodyChunk.pos, self.bug.bodyChunks[1].pos, 0.3f);
+
+                self.legs[i, j].pos = Vector2.Lerp(self.legs[i, j].pos, connectPos, shrivelUp);
+            }
         }
 
-        sLeaser.sprites[self.HeadSprite].isVisible = true;
-        for (int i = 0; i < 2; i++) {
-            for (int j = 0; j < 4; j++) {
-                sLeaser.sprites[self.LegSprite(i, j, 0)].isVisible = true; // first segment from body
-                sLeaser.sprites[self.LegSprite(i, j, 1)].isVisible = true; // second segment
-                sLeaser.sprites[self.LegSprite(i, j, 2)].isVisible = true; // third segment
+        orig(self, sLeaser, rCam, timeStacker, camPos);
 
-                // they are just sprites stretched to reach the next segment
+        foreach (var sprite in sLeaser.sprites) {
+            sprite.color = Color.Lerp(sprite.color, rCam.currentPalette.blackColor, self.bug.Burn());
+        }
+    }
+
+
+    private static void Scavenger_Update(On.Scavenger.orig_Update orig, Scavenger self, bool eu)
+    {
+        orig(self, eu);
+
+        ref float temp = ref self.Temperature();
+        ref float burn = ref self.Burn();
+
+        if (temp > 0.1f) {
+            self.AI.behavior = ScavengerAI.Behavior.Flee;
+
+            self.WispySmoke().Emit(self.mainBodyChunk.pos, new(0, 1), Color.black);
+        }
+
+        // Burn baby burn
+        if (temp > 0.25f && self.State is HealthState state) {
+            Radiate(self, _ => self.mainBodyChunk.pos);
+
+            burn += 1f / 40f / 6f;
+
+            float heat = 1 - (2 * burn - 1).Pow(2);
+
+            temp += heat / 60f;
+
+            if (self.State.alive) {
+                state.health = Mathf.Min(state.health, (1 - burn).Pow(3));
+                self.AI.scared = 1f;
+            }
+
+            int num = (int)Rng(0, heat * 12);
+            for (int i = 0; i < num; i++) {
+                BodyChunk chunk = self.RandomChunk;
+
+                self.room.AddObject(new LavaFireSprite(chunk.pos + Random.insideUnitCircle * chunk.rad, true));
+            }
+        }
+    }
+
+    private static void ScavengerGraphics_DrawSprites(On.ScavengerGraphics.orig_DrawSprites orig, ScavengerGraphics self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
+    {
+        self.ApplyPalette(sLeaser, rCam, rCam.currentPalette);
+
+        orig(self, sLeaser, rCam, timeStacker, camPos);
+
+        foreach (var sprite in sLeaser.sprites) {
+            if (sprite is TriangleMesh mesh && mesh.verticeColors != null) {
+                for (int i = 0; i < mesh.verticeColors.Length; i++) {
+                    mesh.verticeColors[i] = Color.Lerp(mesh.verticeColors[i], rCam.currentPalette.blackColor, self.scavenger.Burn());
+                }
+            } else {
+                sprite.color = Color.Lerp(sprite.color, rCam.currentPalette.blackColor, self.scavenger.Burn());
             }
         }
     }
