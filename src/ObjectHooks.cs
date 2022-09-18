@@ -87,8 +87,14 @@ static class ObjectHooks
         On.BigSpider.Update += BigSpider_Update;
         On.BigSpiderGraphics.DrawSprites += BigSpiderGraphics_DrawSprites;
 
+        On.DropBug.Update += DropBug_Update;
+        On.DropBugGraphics.DrawSprites += DropBugGraphics_DrawSprites;
+
         On.Scavenger.Update += Scavenger_Update;
         On.ScavengerGraphics.DrawSprites += ScavengerGraphics_DrawSprites;
+
+        On.Cicada.Update += Cicada_Update;
+        On.CicadaGraphics.DrawSprites += CicadaGraphics_DrawSprites;
     }
 
     private static void Fly_Update(On.Fly.orig_Update orig, Fly fly, bool eu)
@@ -623,6 +629,8 @@ static class ObjectHooks
         // TODO: un-lazy and emit fire particles only on top of the spider's sprites
         orig(bug, eu);
 
+        if (bug.room == null) return;
+
         ref float temp = ref bug.Temperature();
         ref float burn = ref bug.Burn();
 
@@ -645,7 +653,7 @@ static class ObjectHooks
 
             float heat = 1 - (2 * burn - 1).Pow(2);
 
-            temp += heat / 60f;
+            temp += heat / 80f;
 
             if (bug.State.alive) {
                 bug.State.health = Mathf.Min(bug.State.health, (1 - burn) * (1 - burn));
@@ -686,10 +694,71 @@ static class ObjectHooks
         }
     }
 
+    private static void DropBug_Update(On.DropBug.orig_Update orig, DropBug self, bool eu)
+    {
+        orig(self, eu);
+
+        if (self.room == null) return;
+
+        ref float temp = ref self.Temperature();
+        ref float burn = ref self.Burn();
+
+        if (temp > 0.08f) {
+            self.AI.behavior = DropBugAI.Behavior.Flee;
+
+            self.WispySmoke().Emit(self.mainBodyChunk.pos, new(0, 1), Color.black);
+        }
+
+        // Burn baby burn
+        if (temp > 0.17f && self.State is HealthState state) {
+            Radiate(self, _ => self.mainBodyChunk.pos);
+
+            burn += 1f / 40f / 6f;
+
+            float heat = 1 - (2 * burn - 1).Pow(2);
+
+            temp += heat / 80f;
+
+            if (self.State.alive) {
+                state.health = Mathf.Min(state.health, (1 - burn).Pow(3));
+            }
+
+            int num = (int)Rng(0, heat * 18);
+            for (int i = 0; i < num; i++) {
+                BodyChunk chunk = self.RandomChunk;
+
+                self.room.AddObject(new LavaFireSprite(chunk.pos + Random.insideUnitCircle * chunk.rad, true));
+            }
+
+            if (self.graphicsModule is DropBugGraphics g) {
+                g.bodyThickness = Mathf.Lerp(g.bodyThickness, 0.45f, heat * 0.05f);
+            }
+        }
+    }
+
+    private static void DropBugGraphics_DrawSprites(On.DropBugGraphics.orig_DrawSprites orig, DropBugGraphics self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
+    {
+        self.ApplyPalette(sLeaser, rCam, rCam.currentPalette);
+
+        orig(self, sLeaser, rCam, timeStacker, camPos);
+
+        foreach (var sprite in sLeaser.sprites) {
+            if (sprite is TriangleMesh mesh && mesh.verticeColors != null) {
+                for (int i = 0; i < mesh.verticeColors.Length; i++) {
+                    mesh.verticeColors[i] = Color.Lerp(mesh.verticeColors[i], rCam.currentPalette.blackColor, self.bug.Burn());
+                }
+            }
+            else {
+                sprite.color = Color.Lerp(sprite.color, rCam.currentPalette.blackColor, self.bug.Burn());
+            }
+        }
+    }
 
     private static void Scavenger_Update(On.Scavenger.orig_Update orig, Scavenger self, bool eu)
     {
         orig(self, eu);
+
+        if (self.room == null) return;
 
         ref float temp = ref self.Temperature();
         ref float burn = ref self.Burn();
@@ -708,7 +777,7 @@ static class ObjectHooks
 
             float heat = 1 - (2 * burn - 1).Pow(2);
 
-            temp += heat / 60f;
+            temp += heat / 80f;
 
             if (self.State.alive) {
                 state.health = Mathf.Min(state.health, (1 - burn).Pow(3));
@@ -737,6 +806,71 @@ static class ObjectHooks
                 }
             } else {
                 sprite.color = Color.Lerp(sprite.color, rCam.currentPalette.blackColor, self.scavenger.Burn());
+            }
+        }
+    }
+
+    private static void Cicada_Update(On.Cicada.orig_Update orig, Cicada self, bool eu)
+    {
+        orig(self, eu);
+
+        ref float temp = ref self.Temperature();
+        ref float burn = ref self.Burn();
+
+        if (temp > 0.25f) {
+            self.AI.behavior = CicadaAI.Behavior.Flee;
+
+            self.WispySmoke().Emit(self.mainBodyChunk.pos, new(0, 1), Color.black);
+        }
+
+        // Burn baby burn
+        if (temp > 0.35f && self.State is HealthState state) {
+            Radiate(self, _ => self.mainBodyChunk.pos);
+
+            burn += 1f / 40f / 12f;
+
+            float heat = 1 - (2 * burn - 1).Pow(2);
+
+            temp += heat / 80f;
+
+            if (self.State.alive) {
+                state.health = Mathf.Min(state.health, (1 - burn).Pow(3));
+            }
+
+            int num = (int)Rng(0, heat * 12);
+            for (int i = 0; i < num; i++) {
+                BodyChunk chunk = self.RandomChunk;
+
+                self.room.AddObject(new LavaFireSprite(chunk.pos + Random.insideUnitCircle * chunk.rad * 1.2f, true));
+            }
+        }
+    }
+
+    private static void CicadaGraphics_DrawSprites(On.CicadaGraphics.orig_DrawSprites orig, CicadaGraphics self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
+    {
+        self.ApplyPalette(sLeaser, rCam, rCam.currentPalette);
+
+        orig(self, sLeaser, rCam, timeStacker, camPos);
+
+        float burn = self.cicada.Burn();
+
+        foreach (var sprite in sLeaser.sprites) {
+            if (sprite is TriangleMesh mesh && mesh.verticeColors != null) {
+                for (int i = 0; i < mesh.verticeColors.Length; i++) {
+                    mesh.verticeColors[i] = Color.Lerp(mesh.verticeColors[i], rCam.currentPalette.blackColor with { a = sprite.color.a }, burn);
+                }
+            }
+            else {
+                sprite.color = Color.Lerp(sprite.color, rCam.currentPalette.blackColor with { a = sprite.color.a }, burn);
+            }
+        }
+
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 2; j++) {
+                FSprite sprite = sLeaser.sprites[self.WingSprite(i, j)];
+                float alpha = Mathf.Lerp(sprite.color.a, 0, self.cicada.Burn());
+
+                sprite.color = sprite.color with { a = alpha };
             }
         }
     }

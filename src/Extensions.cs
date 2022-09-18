@@ -80,7 +80,7 @@ static class Extensions
         static HeatProperties Edible(float conductivity, float eatSpeed) => new() { Conductivity = conductivity, EatSpeed = eatSpeed };
 
         return self switch {
-            IPlayerEdible or WaterNut or FlyLure or BubbleGrass or Leech => Edible(0.2f, 1f),
+            IPlayerEdible or WaterNut or FlyLure or BubbleGrass => Edible(0.2f, 1f),
             Spider => new HeatProperties { Conductivity = 0.15f, EatSpeed = 2f, DryTemp = 0 },
 
             Spear => Inedible(0.50f),
@@ -89,6 +89,8 @@ static class Extensions
             DataPearl => Inedible(0.07f),
             SeedCob => Inedible(0.05f),
 
+            Cicada => new HeatProperties { Conductivity = 0.15f, DryTemp = 0.4f },
+            DropBug => new HeatProperties { Conductivity = 0.09f, DryTemp = 0.25f },
             Scavenger => new HeatProperties { Conductivity = 0.09f, DryTemp = 0.25f },
             BigSpider => new HeatProperties { Conductivity = 0.11f, DryTemp = 0.25f },
             Creature => Inedible(0.07f),

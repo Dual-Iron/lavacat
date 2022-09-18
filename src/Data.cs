@@ -6,31 +6,30 @@ namespace LavaCat;
 
 static class ExtraData
 {
+    // Player data
     static readonly WeakTable<Player, PlayerData> plrData = new(_ => new());
     static readonly WeakTable<PlayerGraphics, PlayerGraphicsData> graphicsData = new(_ => new());
 
+    // Burning
+    static readonly WeakTable<SeedCob, CobData> cobData = new(_ => new());
+    static readonly WeakTable<Creature, BurnData> critData = new(_ => new());
+
+    // Misc
     static readonly WeakTable<AbstractPhysicalObject, ApoData> apoData = new(_ => new());
     static readonly WeakTable<PhysicalObject, PoData> poData = new(_ => new());
-    static readonly WeakTable<SeedCob, CobData> cobData = new(_ => new());
-    static readonly WeakTable<BigSpider, BurnData> spiderData = new(_ => new());
-    static readonly WeakTable<Scavenger, BurnData> scavData = new(_ => new());
 
     public static ref float HeatProgress(this Player p) => ref plrData[p].eatProgress;
     public static ref int BlindTimer(this Player p) => ref plrData[p].blindTimer;
+    public static CatLight[] Lights(this PlayerGraphics g) => graphicsData[g].lights;
+
+    public static float[] SeedBurns(this SeedCob o) => cobData[o].seedBurns ??= new float[o.seedPositions.Length];
+    public static ref float Burn(this Creature crit) => ref critData[crit].burn;
 
     public static ref bool AvoidsHeat(this AbstractCreature c) => ref apoData[c].avoidsHeat;
-
     public static ref float Temperature(this AbstractPhysicalObject o) => ref apoData[o].temperature;
     public static ref float Temperature(this PhysicalObject o) => ref apoData[o.abstractPhysicalObject].temperature;
     public static ref float TemperatureChange(this PhysicalObject o) => ref poData[o].temperatureChange;
-
-    public static float[] SeedBurns(this SeedCob o) => cobData[o].seedBurns ??= new float[o.seedPositions.Length];
-    public static ref float Burn(this BigSpider spider) => ref spiderData[spider].burn;
-    public static ref float Burn(this Scavenger scav) => ref scavData[scav].burn;
-
     public static ref int SteamSound(this PhysicalObject o) => ref poData[o].steamSound;
-
-    public static CatLight[] Lights(this PlayerGraphics g) => graphicsData[g].lights;
 
     public static ref WeakRef<WispySmoke> WispySmokeRef(this PhysicalObject o, int i)
     {

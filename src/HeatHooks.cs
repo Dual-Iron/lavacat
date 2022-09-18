@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.Win32.SafeHandles;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using static LavaCat.Extensions;
@@ -9,7 +10,7 @@ static class HeatHooks
 {
     private static void UpdateWaterCollision(PhysicalObject o)
     {
-        if (o.Temperature() <= 0) {
+        if (o.Temperature() <= 0 || o.room == null) {
             return;
         }
 
@@ -320,7 +321,7 @@ static class HeatHooks
 
         if (self.SteamSound() > 0) {
             self.SteamSound() -= 1;
-            self.room.PlaySound(SoundID.Gate_Water_Steam_Puff, self.firstChunk.pos, 0.4f, 1.15f);
+            self.room?.PlaySound(SoundID.Gate_Water_Steam_Puff, self.firstChunk.pos, 0.4f, 1.15f);
         }
 
         UpdateWaterCollision(self);
@@ -347,7 +348,7 @@ static class HeatHooks
 
             p.Temperature() -= damageOriginal * 0.05f;
 
-            Plugin.Logger.LogDebug($"LavaCat reduced {damageOriginal:0.00} damage to {damage * (1 - reduction):0.00}, then lost {damageOriginal * 5:0.00%} temperature");
+            Plugin.Logger.LogDebug($"LavaCat reduced {damageOriginal:0.00} damage to {damage * (1 - reduction):0.00}, then lost {damageOriginal * 0.05f:0.00} temperature");
         }
 
         orig(crit, source, directionAndMomentum, hitChunk, hitAppendage, type, damage, stunBonus);
@@ -355,10 +356,13 @@ static class HeatHooks
 
     private static void Creature_Update(On.Creature.orig_Update orig, Creature crit, bool eu)
     {
-        bool isLavaCat = crit is Player pl && pl.IsLavaCat();
+        if (crit is Player pl && pl.IsLavaCat() || crit.room == null) {
+            orig(crit, eu);
+            return;
+        }
 
         // If grabbing a burning creature and can't withstand the heat, drop it
-        if (!isLavaCat && crit.grasps != null) {
+        if (crit.grasps != null) {
             foreach (var grasp in crit.grasps) {
                 if (grasp?.grabbed == null) {
                     continue;
@@ -377,8 +381,9 @@ static class HeatHooks
 
         orig(crit, eu);
 
-        if (isLavaCat || crit.room == null) {
-            return;
+        int minMeat = (int)Mathf.Lerp(crit.Template.meatPoints, 0, crit.Burn());
+        if (crit.State.meatLeft > minMeat) {
+            crit.State.meatLeft = minMeat;
         }
 
         float temp = crit.Temperature();

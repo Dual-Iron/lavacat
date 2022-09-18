@@ -60,12 +60,14 @@ static class PlayerHooks
     private static int Player_Grabability(On.Player.orig_Grabability orig, Player self, PhysicalObject obj)
     {
         // TODO fix leeches lagging behind player hand in water
-        if (self.IsLavaCat()) return obj switch {
-            BigSpider or Scavenger => (int)Player.ObjectGrabability.Drag,
-            Spider s => s.TotalMass > 0.11f ? (int)Player.ObjectGrabability.Drag : (int)Player.ObjectGrabability.OneHand,
-            //Leech => (int)Player.ObjectGrabability.OneHand,
-            _ => orig(self, obj),
-        };
+        if (self.IsLavaCat()) {
+            if (obj is BigSpider or Scavenger or DropBug) {
+                return (int)Player.ObjectGrabability.Drag;
+            }
+            if (obj is Spider s) {
+                return s.TotalMass > 0.11f ? (int)Player.ObjectGrabability.Drag : (int)Player.ObjectGrabability.OneHand;
+            }
+        }
         return orig(self, obj);
     }
 
