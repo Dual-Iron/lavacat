@@ -1,0 +1,116 @@
+{"frames": {
+
+"Magmaarm0.png":
+{
+	"frame": {"x":2,"y":2,"w":28,"h":8},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":28,"h":8},
+	"sourceSize": {"w":28,"h":8}
+},
+"Magmaarm1.png":
+{
+	"frame": {"x":2,"y":12,"w":28,"h":8},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":28,"h":8},
+	"sourceSize": {"w":28,"h":8}
+},
+"Magmaarm2.png":
+{
+	"frame": {"x":2,"y":22,"w":28,"h":8},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":28,"h":8},
+	"sourceSize": {"w":28,"h":8}
+},
+"Magmaarm3.png":
+{
+	"frame": {"x":2,"y":32,"w":28,"h":8},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":28,"h":8},
+	"sourceSize": {"w":28,"h":8}
+},
+"Magmaarm4.png":
+{
+	"frame": {"x":2,"y":42,"w":28,"h":8},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":28,"h":8},
+	"sourceSize": {"w":28,"h":8}
+},
+"Magmaarm5.png":
+{
+	"frame": {"x":2,"y":52,"w":28,"h":8},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":28,"h":8},
+	"sourceSize": {"w":28,"h":8}
+},
+"Magmaarm6.png":
+{
+	"frame": {"x":2,"y":62,"w":28,"h":8},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":28,"h":8},
+	"sourceSize": {"w":28,"h":8}
+},
+"Magmaarm7.png":
+{
+	"frame": {"x":2,"y":72,"w":28,"h":8},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":28,"h":8},
+	"sourceSize": {"w":28,"h":8}
+},
+"Magmaarm8.png":
+{
+	"frame": {"x":2,"y":82,"w":28,"h":8},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":28,"h":8},
+	"sourceSize": {"w":28,"h":8}
+},
+"Magmaarm9.png":
+{
+	"frame": {"x":2,"y":92,"w":28,"h":8},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":28,"h":8},
+	"sourceSize": {"w":28,"h":8}
+},
+"Magmaarm10.png":
+{
+	"frame": {"x":2,"y":102,"w":28,"h":8},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":28,"h":8},
+	"sourceSize": {"w":28,"h":8}
+},
+"Magmaarm11.png":
+{
+	"frame": {"x":2,"y":112,"w":28,"h":8},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":28,"h":8},
+	"sourceSize": {"w":28,"h":8}
+},
+"Magmaarm12.png":
+{
+	"frame": {"x":2,"y":122,"w":28,"h":8},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":28,"h":8},
+	"sourceSize": {"w":28,"h":8}
+}},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "Magmaarm.png",
+	"format": "RGBA8888",
+	"size": {"w":32,"h":132},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:a1e2aa6808b57bd32df1be74170e2639:734e285b2fd605f6e435588fb3934cff:d2df03e3abf862d2224954f189394438$"
+}
+}

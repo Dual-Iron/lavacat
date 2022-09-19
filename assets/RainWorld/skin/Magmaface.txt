@@ -1,0 +1,172 @@
+{"frames": {
+
+"MagmafaceA0.png":
+{
+	"frame": {"x":2,"y":2,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceA1.png":
+{
+	"frame": {"x":20,"y":2,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceA2.png":
+{
+	"frame": {"x":38,"y":2,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceA3.png":
+{
+	"frame": {"x":56,"y":2,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceA4.png":
+{
+	"frame": {"x":74,"y":2,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceA5.png":
+{
+	"frame": {"x":92,"y":2,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceA6.png":
+{
+	"frame": {"x":110,"y":2,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceA7.png":
+{
+	"frame": {"x":2,"y":22,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceA8.png":
+{
+	"frame": {"x":20,"y":22,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceB0.png":
+{
+	"frame": {"x":38,"y":22,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceB1.png":
+{
+	"frame": {"x":56,"y":22,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceB2.png":
+{
+	"frame": {"x":74,"y":22,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceB3.png":
+{
+	"frame": {"x":92,"y":22,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceB4.png":
+{
+	"frame": {"x":110,"y":22,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceB5.png":
+{
+	"frame": {"x":2,"y":42,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceB6.png":
+{
+	"frame": {"x":20,"y":42,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceB7.png":
+{
+	"frame": {"x":38,"y":42,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceB8.png":
+{
+	"frame": {"x":56,"y":42,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceDead.png":
+{
+	"frame": {"x":74,"y":42,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+},
+"MagmafaceStunned.png":
+{
+	"frame": {"x":92,"y":42,"w":16,"h":18},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":16,"h":18},
+	"sourceSize": {"w":16,"h":18}
+}},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "MagmaMagmaface.png",
+	"format": "RGBA8888",
+	"size": {"w":128,"h":62},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:3e103ab7c88f6b678944059bd46f2944:5beb8b48b9f3a2496566fa91bad7ace3:3f85f04c543f8f47539ac02ff384d80f$"
+}
+}

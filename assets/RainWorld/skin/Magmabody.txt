@@ -1,0 +1,20 @@
+{"frames": {
+
+"Magmabody.png":
+{
+	"frame": {"x":2,"y":2,"w":14,"h":19},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":14,"h":19},
+	"sourceSize": {"w":14,"h":19}
+}},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "Magmabody.png",
+	"format": "RGBA8888",
+	"size": {"w":18,"h":23},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:54224e5c41d22bab95a25c95fce01387:1e223827d9f31385b22dedd9bbe2e05f:db2ea474e003f17361b8f8f284323277$"
+}
+}
