@@ -199,7 +199,7 @@ static class PlayerHooks
     static bool allowWaterDrips = true;
     private static void Player_Update(On.Player.orig_Update orig, Player player, bool eu)
     {
-        if (!player.IsLavaCat()) {
+        if (player?.room == null || !player.IsLavaCat()) {
             orig(player, eu);
             return;
         }
@@ -249,6 +249,7 @@ static class PlayerHooks
         static void UpdateStats(Player player, float temperature)
         {
             var stats = player.slugcatStats;
+            if (stats == null) return;
 
             stats.loudnessFac = 1.5f;
             stats.lungsFac = 0.01f;

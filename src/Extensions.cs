@@ -1,5 +1,7 @@
-﻿using RWCustom;
+﻿using Mono.Cecil;
+using RWCustom;
 using SlugBase;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -218,6 +220,61 @@ static class Extensions
         foreach (var value in source) {
             yield return new(value, ++i);
         }
+    }
+
+    static string Debug(this object value, int indent)
+    {
+        static string IndentString(int i) => new(' ', i * 2);
+
+        if (value is string s) return $"\"{s}\"";
+        if (value is IDictionary dict) {
+            var sb = new System.Text.StringBuilder("{\n" + IndentString(indent));
+            var enumerator = dict.Keys.GetEnumerator();
+            if (enumerator.MoveNext()) {
+                sb.Append(enumerator.Current.Debug(indent + 1));
+                sb.Append(" = ");
+                sb.Append(dict[enumerator.Current].Debug(indent + 1));
+            }
+            while (enumerator.MoveNext()) {
+                sb.Append(",\n" + IndentString(indent));
+                sb.Append(enumerator.Current.Debug(indent + 1));
+                sb.Append(" = ");
+                sb.Append(dict[enumerator.Current].Debug(indent + 1));
+            }
+            sb.Append("\n" + IndentString(indent - 1) + "}");
+            return sb.ToString();
+        }
+        if (value is IList list) {
+            var sb = new System.Text.StringBuilder("[");
+            for (int i = 0; i < list.Count - 1; i++) {
+                sb.Append(list[i].Debug(indent + 1));
+                sb.Append(", ");
+            }
+            sb.Append(list[list.Count - 1].Debug(indent + 1));
+            sb.Append("]");
+            return sb.ToString();
+        }
+        if (value is IEnumerable enumerable) {
+            var sb = new System.Text.StringBuilder("(");
+
+            var enumerator = enumerable.GetEnumerator();
+            if (enumerator.MoveNext()) {
+                sb.Append(enumerator.Current.Debug(indent + 1));
+            }
+            while (enumerator.MoveNext()) {
+                sb.Append(", ");
+                sb.Append(enumerator.Current.Debug(indent + 1));
+            }
+
+            sb.Append(")");
+            return sb.ToString();
+        }
+        return value.ToString();
+    }
+
+    public static string Debug(this object value)
+    {
+        return Debug(value, 1);
     }
 }
 

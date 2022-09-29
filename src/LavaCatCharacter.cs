@@ -14,7 +14,7 @@ sealed class LavaCatCharacter : SlugBaseCharacter
     public override string DisplayName => "The Melted";
     public override string Description => "made by hotties, for hotties, and of hotties";
 
-    public override string StartRoom => "SB_S04";
+    public override string StartRoom => "SH_S02";
     public override bool CanSkipTempleGuards => false;
     public override bool GatesPermanentlyUnlock => false;
     public override bool HasGuideOverseer => false;

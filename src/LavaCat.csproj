@@ -25,6 +25,11 @@
       <LogicalName>Illustrations.%(Filename)%(Extension)</LogicalName>
       <Visible>false</Visible>
     </EmbeddedResource>
+
+    <EmbeddedResource Include="../assets/LavaCat.png;../assets/LavaCat.json">
+      <LogicalName>%(Filename)%(Extension)</LogicalName>
+      <Visible>false</Visible>
+    </EmbeddedResource>
     
     <Reference Include="../lib/*.refstub.dll" />
     <Compile Include="../lib/**/*.cs" />
