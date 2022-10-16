@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using WeakTables;
 
@@ -21,6 +22,7 @@ static class ExtraData
     public static ref float HeatProgress(this Player p) => ref plrData[p].eatProgress;
     public static ref int BlindTimer(this Player p) => ref plrData[p].blindTimer;
     public static CatLight[] Lights(this PlayerGraphics g) => graphicsData[g].lights;
+    public static ref int PlateSprites(this PlayerGraphics g) => ref graphicsData[g].PlateSprites;
 
     public static float[] SeedBurns(this SeedCob o) => cobData[o].seedBurns ??= new float[o.seedPositions.Length];
     public static ref float Burn(this Creature crit) => ref critData[crit].burn;
@@ -77,6 +79,7 @@ sealed class PoData
 sealed class PlayerGraphicsData
 {
     public CatLight[] lights = new CatLight[3];
+    public int PlateSprites;
 }
 
 struct CatLight

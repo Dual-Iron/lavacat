@@ -377,8 +377,8 @@ static class PlayerHooks
                 mesh.verticeColors[i] = Color.Lerp(player.player.SkinColor(), Color.white * (player.player.Temperature() + 0.25f), i / (float)mesh.verticeColors.Length);
             }
 
-            for (int i = 0; i < sLeaser.sprites.Length; i++) {
-                if (i != 2 && i != 9 && i != 10 && i != 11) {
+            for (int i = 0; i < 9; i++) {
+                if (i != 2) {
                     sLeaser.sprites[i].color = player.player.SkinColor();
                 }
             }
