@@ -135,7 +135,9 @@ static class PlayerHooks
                 food = state.foodInStomach;
             }
 
-            player.Temperature() = (float)(food / (float)SlugcatStats.SlugcatFoodMeter(Plugin.Character.SlugcatIndex).x);
+            if (player.realizedCreature is Player p && p.IsLavaCat()) {
+                player.Temperature() = (float)(food / (float)SlugcatStats.SlugcatFoodMeter(Plugin.Character.SlugcatIndex).x);
+            }
         }
     }
 

@@ -362,6 +362,7 @@ static class ObjectHooks
             // Erase pearl data if too hot
             self.AbstractPearl.dataPearlType = BurntPearl;
             self.ApplyPalette(sLeaser, rCam, rCam.currentPalette);
+            Plugin.Logger.LogInfo("Burnt pearl! " + self.abstractPhysicalObject);
         }
     }
 
