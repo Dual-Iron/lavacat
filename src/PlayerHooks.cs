@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using static LavaCat.Extensions;
 using static UnityEngine.Mathf;
 
@@ -40,13 +41,6 @@ static class PlayerHooks
         On.Player.MovementUpdate += Player_MovementUpdate;
         On.Player.GrabUpdate += Player_GrabUpdate;
         On.Room.FloatWaterLevel += Room_FloatWaterLevel;
-
-        // Graphics
-        On.PlayerGraphics.PlayerObjectLooker.HowInterestingIsThisObject += PlayerObjectLooker_HowInterestingIsThisObject;
-        On.Player.ShortCutColor += Player_ShortCutColor;
-        On.PlayerGraphics.ApplyPalette += PlayerGraphics_ApplyPalette;
-        On.PlayerGraphics.DrawSprites += PlayerGraphics_DrawSprites;
-        On.PlayerGraphics.Update += PlayerGraphics_Update;
     }
 
     private static bool Creature_Grab1(On.Creature.orig_Grab orig, Creature self, PhysicalObject obj, int graspUsed, int chunkGrabbed, Creature.Grasp.Shareability shareability, float dominance, bool overrideEquallyDominant, bool pacifying)
@@ -347,149 +341,5 @@ static class PlayerHooks
     {
         // Ignore water level when performing movement update.
         return movementUpdate ? 0 : orig(room, horizontalPos);
-    }
-
-    // -- Player graphics --
-
-    private static float PlayerObjectLooker_HowInterestingIsThisObject(On.PlayerGraphics.PlayerObjectLooker.orig_HowInterestingIsThisObject orig, object self, PhysicalObject obj)
-    {
-        if (self is PlayerGraphics.PlayerObjectLooker looker && looker.owner.player.BlindTimer() > 0) {
-            return float.NegativeInfinity;
-        }
-        return orig(self, obj);
-    }
-
-    private static Color Player_ShortCutColor(On.Player.orig_ShortCutColor orig, Player player)
-    {
-        return player.IsLavaCat() ? player.SkinColor() : orig(player);
-    }
-
-    private static void PlayerGraphics_ApplyPalette(On.PlayerGraphics.orig_ApplyPalette orig, PlayerGraphics player, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, RoomPalette palette)
-    {
-        orig(player, sLeaser, rCam, palette);
-
-        // Make tail creamy white :)
-        if (player.player.IsLavaCat() && sLeaser.sprites[2] is TriangleMesh mesh) {
-            mesh.verticeColors = new Color[mesh.vertices.Length];
-            mesh.customColor = true;
-
-            for (int i = 0; i < mesh.verticeColors.Length; i++) {
-                mesh.verticeColors[i] = Color.Lerp(player.player.SkinColor(), Color.white * (player.player.Temperature() + 0.25f), i / (float)mesh.verticeColors.Length);
-            }
-
-            for (int i = 0; i < 9; i++) {
-                if (i != 2) {
-                    sLeaser.sprites[i].color = player.player.SkinColor();
-                }
-            }
-        }
-    }
-
-    private static void PlayerGraphics_DrawSprites(On.PlayerGraphics.orig_DrawSprites orig, PlayerGraphics graf, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, float timeStacker, Vector2 camPos)
-    {
-        orig(graf, sLeaser, rCam, timeStacker, camPos);
-
-        if (graf.player.IsLavaCat()) {
-            graf.ApplyPalette(sLeaser, rCam, rCam.currentPalette);
-        }
-    }
-
-    private static void PlayerGraphics_Update(On.PlayerGraphics.orig_Update orig, PlayerGraphics graf)
-    {
-        orig(graf);
-
-        if (graf.player.BlindTimer() > 0) {
-            graf.player.BlindTimer() -= 1;
-            graf.objectLooker.LookAtNothing();
-        }
-
-        if (graf.player.IsLavaCat()) {
-            graf.breath = 0f;
-            graf.lastBreath = 0f;
-
-            EmitFire(graf);
-            UpdateLights(graf);
-        }
-
-        static void EmitFire(PlayerGraphics graf)
-        {
-            float chance = 0.50f * graf.player.Temperature() * graf.player.Temperature();
-
-            // Emit fire at top of head
-            if (RngChance(chance * 0.5f)) {
-                graf.player.room.AddObject(new LavaFireSprite(graf.head.pos + Random.insideUnitCircle * 4));
-            }
-            // Emit fire on tail
-            if (RngChance(chance)) {
-                LavaFireSprite particle = new(graf.tail.RandomElement().pos);
-                particle.vel.x *= 0.25f;
-                particle.life *= 0.70f;
-                graf.player.room.AddObject(particle);
-            }
-        }
-
-        static void UpdateLights(PlayerGraphics graf)
-        {
-            CatLight[] lights = graf.Lights();
-
-            if (graf.player.Temperature() <= 0) {
-                if (graf.player.glowing) {
-
-                    graf.player.glowing = false;
-                    graf.lightSource?.Destroy();
-
-                    for (int i = 0; i < lights.Length; i++) {
-                        if (lights[i].source.TryGetTarget(out var light)) {
-                            lights[i].source = new();
-                            light.Destroy();
-                        }
-                    }
-                }
-                return;
-            }
-
-            graf.player.glowing = true;
-
-            // Dampen glow light source
-            if (graf.lightSource != null) {
-                graf.lightSource.color = LavaColor.rgb with { a = graf.player.Temperature() };
-                graf.lightSource.rad = 200 * graf.player.Temperature();
-            }
-
-            for (int i = 0; i < lights.Length; i++) {
-                lights[i].source ??= new();
-                lights[i].source.TryGetTarget(out var source);
-
-                if (source != null && (source.slatedForDeletetion || source.room != graf.player.room)) {
-                    source.setAlpha = 0;
-                    source.Destroy();
-                    source = null;
-                }
-
-                if (source == null) {
-                    float hue = Lerp(0.01f, 0.07f, i / 2f);
-                    Color color = new HSLColor(hue, 1f, 0.5f).rgb;
-                    source = new LightSource(graf.player.firstChunk.pos, false, color, graf.player) {
-                        setAlpha = 1,
-                    };
-
-                    lights[i].source = new(source);
-                    graf.player.room.AddObject(source);
-                }
-
-                if (RngChance(0.2f)) {
-                    lights[i].targetOffset = Random.insideUnitCircle * 25f;
-                }
-                if (RngChance(0.2f)) {
-                    float minRad = 50f;
-                    float maxRad = Lerp(350f, 150f, i / (lights.Length - 1f));
-                    lights[i].targetRad = Lerp(minRad, maxRad, Sqrt(Random.value)) * graf.player.Temperature();
-                }
-                lights[i].offset = Vector2.Lerp(lights[i].offset, lights[i].targetOffset, 0.2f);
-                source.setRad = Lerp(source.rad, lights[i].targetRad, 0.2f);
-                source.setPos = graf.player.firstChunk.pos + lights[i].offset;
-                source.alpha = graf.player.Temperature();
-            }
-        }
     }
 }

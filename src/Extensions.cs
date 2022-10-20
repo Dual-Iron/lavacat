@@ -23,15 +23,13 @@ static class Extensions
     public static Color SkinColor(this Player player) => player.SkinColor(player.Temperature());
     public static Color SkinColor(this Player player, float temp)
     {
-        Color gray = Color.gray;
+        HSLColor target = PlayerManager.GetSlugcatColor(player).HSL();
 
-        if (player.Malnourished) {
-            gray.r *= 0.75f;
-            gray.g *= 0.75f;
-            gray.b *= 0.8f;
-        }
+        float h = Mathf.Lerp(target.hue - 0.05f, target.hue, temp);
+        float s = Mathf.Lerp(0.05f, 1, temp.Sqrt());
+        float l = Mathf.Lerp(player.Malnourished ? 0.22f : 0.3f, target.lightness, temp.Pow(2));
 
-        return Color.Lerp(PlayerManager.GetSlugcatColor(player), gray, 1 - temp);
+        return new HSLColor(h, s, l).rgb;
     }
 
     public static float FoodHeat(this PhysicalObject o)
