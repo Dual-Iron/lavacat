@@ -287,14 +287,14 @@ static class HeatHooks
     {
         orig(self, eu);
 
-        bool heldByLavaCat = self is Player p && p.IsLavaCat();
+        bool heldByLavaCat = self is Player p && !p.dead && p.IsLavaCat();
 
         foreach (var stick in self.abstractPhysicalObject.stuckObjects) {
             AbstractPhysicalObject notMe = stick.A == self.abstractPhysicalObject ? stick.B : stick.A;
 
             if (notMe.realizedObject is PhysicalObject other) {
                 // Player doesn't lose heat if just holding an object
-                bool retainHeat = stick is AbstractPhysicalObject.CreatureGripStick or Player.AbstractOnBackStick && stick.A.realizedObject is Player p3 && p3.IsLavaCat();
+                bool retainHeat = stick is AbstractPhysicalObject.CreatureGripStick or Player.AbstractOnBackStick && stick.A.realizedObject is Player p3 && !p3.dead && p3.IsLavaCat();
                 heldByLavaCat |= retainHeat;
 
                 self.EqualizeHeat(other, losePlayerHeat: !retainHeat);
