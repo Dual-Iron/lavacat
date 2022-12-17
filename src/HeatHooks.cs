@@ -207,41 +207,6 @@ static class HeatHooks
                 progress = 0;
             }
         }
-
-        static void Suicide(Player player)
-        {
-            ref float progress = ref player.HeatProgress();
-
-            if (progress > 1f) {
-                progress = 0;
-
-                player.room.PlaySound(SoundID.Water_Nut_Swell, player.firstChunk,false, 1, 0.8f);
-
-                // TODO: fugly head explosion
-                player.deaf += 500000;
-                player.Die();
-            }
-
-            if (progress > 1/2f) {
-                if (RngChance(0.1f * progress * progress)) {
-                    player.room.Steam().Emit(player.firstChunk.pos, Random.insideUnitCircle * (2 + 6 * progress), 0.5f);
-                    player.SteamSound() = 7;
-                }
-
-                player.standing = false;
-
-                Vector2 shake = Random.insideUnitCircle * 2 * progress * progress;
-                player.bodyChunks[0].pos += shake;
-                player.bodyChunks[0].vel += shake;
-                player.bodyChunks[1].pos -= shake;
-                player.bodyChunks[1].vel -= shake;
-            }
-            else if (progress > 1/4f) {
-                player.standing = false;
-            }
-
-            progress += 1 / 400f;
-        }
     }
 
     // -- Physics --
