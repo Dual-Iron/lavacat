@@ -1,6 +1,7 @@
 ﻿using System;
 using UnityEngine;
 using static LavaCat.Extensions;
+using static SlugcatStats;
 using static UnityEngine.Mathf;
 
 namespace LavaCat;
@@ -25,7 +26,7 @@ static class PlayerHooks
 
         // Make food meter reflect temperature
         On.Player.FoodInRoom_Room_bool += Player_FoodInRoom_Room_bool;
-        On.RainWorldGame.ctor += RainWorldGame_ctor;
+        On.AbstractCreature.RealizeInRoom += AbstractCreature_RealizeInRoom;
         On.HUD.FoodMeter.ctor += FoodMeter_ctor;
         On.HUD.FoodMeter.Update += FoodMeter_Update;
 
@@ -53,14 +54,8 @@ static class PlayerHooks
 
     private static int Player_Grabability(On.Player.orig_Grabability orig, Player self, PhysicalObject obj)
     {
-        // TODO fix leeches lagging behind player hand in water
-        if (self.IsLavaCat()) {
-            if (obj is BigSpider or Scavenger or DropBug) {
-                return (int)Player.ObjectGrabability.Drag;
-            }
-            if (obj is Spider s) {
-                return s.TotalMass > 0.11f ? (int)Player.ObjectGrabability.Drag : (int)Player.ObjectGrabability.OneHand;
-            }
+        if (self.IsLavaCat() && obj is BigSpider or Scavenger or DropBug) {
+            return (int)Player.ObjectGrabability.Drag;
         }
         return orig(self, obj);
     }
@@ -116,21 +111,15 @@ static class PlayerHooks
         return self.IsLavaCat() ? self.FoodInStomach : orig(self, checkRoom, eatAndDestroy);
     }
 
-    private static void RainWorldGame_ctor(On.RainWorldGame.orig_ctor orig, RainWorldGame self, ProcessManager manager)
+    private static void AbstractCreature_RealizeInRoom(On.AbstractCreature.orig_RealizeInRoom orig, AbstractCreature self)
     {
-        orig(self, manager);
+        orig(self);
 
-        foreach (var player in self.Players) {
-            int food = 0;
-            if (self.session is StoryGameSession session) {
-                food = session.saveState.food;
-            }
-            else if (player?.state is PlayerState state) {
-                food = state.foodInStomach;
-            }
+        if (self.world.game?.session is StoryGameSession session) {
+            float food = session.saveState.food;
 
-            if (player.realizedCreature is Player p && p.IsLavaCat()) {
-                player.Temperature() = (float)(food / (float)SlugcatStats.SlugcatFoodMeter(Plugin.Character.SlugcatIndex).x);
+            if (self.realizedCreature is Player p && p.IsLavaCat()) {
+                self.Temperature() = food / SlugcatFoodMeter(Plugin.Character.SlugcatIndex).x;
             }
         }
     }

@@ -57,7 +57,10 @@ sealed class LavaCatCharacter : SlugBaseCharacter
 
     public override CustomSaveState CreateNewSave(PlayerProgression progression)
     {
-        return new LavaCatSaveState(progression);
+        var ret = new LavaCatSaveState(progression);
+        ret.deathPersistentSaveData.karma = 3;
+        ret.food = 4;
+        return ret;
     }
 }
 
@@ -65,11 +68,7 @@ sealed class LavaCatSaveState : CustomSaveState
 {
     public int burntPearls;
 
-    public LavaCatSaveState(PlayerProgression progression) : base(progression, Plugin.Character)
-    {
-        food = 4;
-        deathPersistentSaveData.karma = 3;
-    }
+    public LavaCatSaveState(PlayerProgression progression) : base(progression, Plugin.Character) { }
 
     public override void Save(Dictionary<string, string> data)
     {

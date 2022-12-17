@@ -137,8 +137,8 @@ static class HeatHooks
 
             bool suicide = player.input[0].x == 0 && player.input[0].y == 0 && !player.input[0].jmp && !player.input[0].thrw;
             if (suicide && player.input[0].pckp && player.Submersion >= 0.99f && player.grasps.All(g => g == null)) {
-                Suicide(player);
-                return;
+                //Suicide(player);
+                //return;
             }
 
             player.HeatProgress() = 0;

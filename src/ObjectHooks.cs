@@ -435,7 +435,7 @@ static class ObjectHooks
         if (self.Temperature() > 0.17f) {
             self.deathSpasms = 0f;
         }
-        if (self.Temperature() > 0.5f) {
+        if (self.Temperature() > 0.2f) {
             foreach (var physob in self.room.physicalObjects[0]) {
                 Radiate(self, v => self.firstChunk.pos);
             }
@@ -647,7 +647,7 @@ static class ObjectHooks
         }
         
         // Burn baby burn
-        if (temp > 0.18f) {
+        if (temp > 0.15f) {
             Radiate(bug, _ => bug.mainBodyChunk.pos);
 
             burn += 1f / 40f / 10f;

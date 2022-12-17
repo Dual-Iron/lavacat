@@ -86,7 +86,7 @@ static class Extensions
             Spear => Inedible(0.50f),
             Rock => Inedible(0.05f),
             Player => Inedible(0.02f),
-            DataPearl => Inedible(0.07f),
+            DataPearl => Inedible(0.05f),
             SeedCob => Inedible(0.05f),
 
             Cicada => new HeatProperties { Conductivity = 0.15f, DryTemp = 0.4f },
