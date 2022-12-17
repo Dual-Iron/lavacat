@@ -427,9 +427,6 @@ static class HeatHooks
         if (obj.Temperature() > 0.1f) {
             return self.creature.AvoidsHeat() ? 0 : orig(self, obj, weaponFiltered);
         }
-        if (obj is DataPearl p && p.AbstractPearl.dataPearlType == BurntPearl) {
-            return 0;
-        }
         return orig(self, obj, weaponFiltered);
     }
 }

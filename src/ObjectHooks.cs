@@ -1,6 +1,5 @@
 ﻿using MonoMod.RuntimeDetour;
 using RWCustom;
-using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using static LavaCat.Extensions;
@@ -28,6 +27,8 @@ static class ObjectHooks
 
         foreach (var list in emitter.room.physicalObjects)
             foreach (var obj in list) {
+                if (obj == emitter) continue;
+
                 foreach (var chunk in obj.bodyChunks) {
                     Vector2 closest = emitterPoint(chunk.pos);
                     float sqDist = (chunk.pos - closest).sqrMagnitude;
@@ -260,7 +261,7 @@ static class ObjectHooks
             if (flare.Temperature() > 0.5f) {
                 int stun = blnd / 2;
                 if (flare.thrownBy == self) {
-                    stun /= 2;
+                    stun /= 4;
                 }
                 self.Stun(stun);
             }
@@ -432,13 +433,13 @@ static class ObjectHooks
         if (self.Temperature() > 0.1f) {
             self.Die();
         }
-        if (self.Temperature() > 0.17f) {
+        if (self.Temperature() > 0.15f) {
             self.deathSpasms = 0f;
         }
         if (self.Temperature() > 0.2f) {
-            foreach (var physob in self.room.physicalObjects[0]) {
-                Radiate(self, v => self.firstChunk.pos);
-            }
+            self.Temperature() = 1f;
+
+            Radiate(self, v => self.firstChunk.pos);
 
             self.BurstIntoFlame(2);
             self.abstractPhysicalObject.LoseAllStuckObjects();

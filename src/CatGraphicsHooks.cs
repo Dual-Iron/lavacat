@@ -205,21 +205,15 @@ static class CatGraphicsHooks
         self.BodyPlate(sLeaser).scaleX = 1f;
         self.BodyPlate(sLeaser).element = Plugin.Atlas._elementsByName[BodyDir(dir)];
 
-        //if (self.player.Consious && self.player.bodyMode != Player.BodyModeIndex.ZeroG && self.player.room != null && self.player.room.gravity > 0f) {
-        //    Vector2 head = Vector2.Lerp(self.drawPositions[0, 0], self.head.pos, 0.2f);
-        //    Vector2 body = self.drawPositions[1, 0];
-        //    Vector2 pointing = Custom.DirVec(body, head);
+        if (self.player.Consious && self.player.bodyMode != Player.BodyModeIndex.ZeroG && self.player.room != null && self.player.room.gravity > 0f) {
+            Vector2 head = Vector2.Lerp(self.drawPositions[0, 0], self.head.pos, 0.2f);
+            Vector2 body = self.drawPositions[1, 0];
+            Vector2 pointing = Custom.DirVec(body, head);
 
-        //    bool isBackVisible = pointing.y < -0.1f && self.player.bodyMode != Player.BodyModeIndex.ClimbingOnBeam;
+            bool isBackVisible = pointing.y < -0.1f && self.player.bodyMode != Player.BodyModeIndex.ClimbingOnBeam;
 
-        //    if (isBackVisible) {
-        //        float fade = pointing.y / -0.5f;
-        //        if (fade > 1)
-        //            fade = 1;
-
-        //        self.BodyPlate(sLeaser).scaleX = 1 - fade;
-        //    }
-        //}
+            self.BodyPlate(sLeaser).isVisible = !isBackVisible;
+        }
     }
 
 
