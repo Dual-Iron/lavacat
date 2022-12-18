@@ -6,13 +6,16 @@ namespace LavaCat;
 
 static class ExtraData
 {
+    class Dummy { public float field; }
+
     // Player data
     static readonly WeakTable<Player, PlayerData> plrData = new(_ => new());
     static readonly WeakTable<PlayerGraphics, PlayerGraphicsData> graphicsData = new(_ => new());
 
     // Burning
     static readonly WeakTable<SeedCob, CobData> cobData = new(_ => new());
-    static readonly WeakTable<Creature, BurnData> critData = new(_ => new());
+    static readonly WeakTable<Creature, CritData> critData = new(_ => new());
+    static readonly WeakTable<AbstractCreature, AbstractCritData> acritData = new(_ => new());
 
     // Misc
     static readonly WeakTable<AbstractPhysicalObject, ApoData> apoData = new(_ => new());
@@ -27,10 +30,19 @@ static class ExtraData
     public static ref float Burn(this Creature crit) => ref critData[crit].burn;
 
     public static ref bool AvoidsHeat(this AbstractCreature c) => ref apoData[c].avoidsHeat;
-    public static ref float Temperature(this AbstractPhysicalObject o) => ref apoData[o].temperature;
-    public static ref float Temperature(this PhysicalObject o) => ref apoData[o.abstractPhysicalObject].temperature;
+    public static ref float Temperature(this PhysicalObject o) => ref poData[o].temperature;
     public static ref float TemperatureChange(this PhysicalObject o) => ref poData[o].temperatureChange;
     public static ref int SteamSound(this PhysicalObject o) => ref poData[o].steamSound;
+
+    public static ref float Temperature(this AbstractPhysicalObject o)
+    {
+        if (o.realizedObject != null) {
+            return ref poData[o.realizedObject].temperature;
+        }
+        return ref new Dummy().field;
+    }
+
+    public static ref float Burn(this AbstractCreature acrit) => ref acritData[acrit].burn;
 
     public static ref WeakRef<WispySmoke> WispySmokeRef(this PhysicalObject o, int i)
     {
@@ -51,7 +63,12 @@ sealed class CobData
     public float[] seedBurns;
 }
 
-sealed class BurnData
+sealed class CritData
+{
+    public float burn;
+}
+
+sealed class AbstractCritData
 {
     public float burn;
 }
@@ -64,13 +81,13 @@ sealed class PlayerData
 
 sealed class ApoData
 {
-    public float temperature;
     public bool avoidsHeat;
 }
 
 sealed class PoData
 {
     public int steamSound = 0;
+    public float temperature;
     public float temperatureChange;
     public WeakRef<WispySmoke>[] smoke = new WeakRef<WispySmoke>[0];
 }

@@ -87,6 +87,12 @@ static class HeatHooks
         On.PhysicalObject.Collide += PhysicalObject_Collide;
         On.PhysicalObject.Update += PhysicalObject_Update;
 
+        // Fix saving
+        On.AbstractCreature.Realize += AbstractCreature_Realize;
+        On.SaveState.AbstractCreatureToString_AbstractCreature_WorldCoordinate += CritToString;
+        On.SaveState.AbstractCreatureFromString += SaveState_AbstractCreatureFromString;
+
+        // Fix misc creature behavior
         On.Creature.Violence += Creature_Violence;
         On.Creature.Update += Creature_Update;
         On.PreyTracker.TrackedPrey.Attractiveness += TrackedPrey_Attractiveness;
@@ -291,6 +297,43 @@ static class HeatHooks
         UpdateWaterCollision(self);
     }
 
+    // Burning save data
+
+    private static void AbstractCreature_Realize(On.AbstractCreature.orig_Realize orig, AbstractCreature self)
+    {
+        orig(self);
+
+        if (self.realizedCreature != null && self.Burn() > 0) {
+            self.realizedCreature.Burn() = self.Burn();
+        }
+    }
+
+    private static string CritToString(On.SaveState.orig_AbstractCreatureToString_AbstractCreature_WorldCoordinate orig, AbstractCreature critter, WorldCoordinate pos)
+    {
+        string ret = orig(critter, pos);
+        if (critter.Burn() > 0) {
+            ret += $"<cA>BURN[{critter.Burn()}]";
+        }
+        return ret;
+    }
+
+    private static AbstractCreature SaveState_AbstractCreatureFromString(On.SaveState.orig_AbstractCreatureFromString orig, World world, string creatureString, bool onlyInCurrentRegion)
+    {
+        AbstractCreature ret = orig(world, creatureString, onlyInCurrentRegion);
+        try {
+            int index = creatureString.IndexOf("<cA>BURN[");
+            if (index != -1) {
+                int start = index + "<cA>BURN[".Length;
+                int end = creatureString.IndexOf("]", start);
+                string number = creatureString.Substring(start, end - start);
+                ret.Burn() = float.Parse(number);
+            }
+        } catch (System.Exception e) {
+            Plugin.Logger.LogError(e);
+        }
+        return ret;
+    }
+
     // Burning creatures
 
     private static void Creature_Violence(On.Creature.orig_Violence orig, Creature crit, BodyChunk source, Vector2? directionAndMomentum, BodyChunk hitChunk, PhysicalObject.Appendage.Pos hitAppendage, Creature.DamageType type, float damage, float stunBonus)
@@ -341,6 +384,10 @@ static class HeatHooks
                     crit.Stun((int)(16 * diff));
                 }
             }
+        }
+
+        if (crit.abstractCreature != null && crit.Burn() > 0) {
+            crit.abstractCreature.Burn() = crit.Burn();
         }
 
         orig(crit, eu);

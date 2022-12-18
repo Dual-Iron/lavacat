@@ -772,7 +772,7 @@ static class ObjectHooks
         }
 
         // Burn baby burn
-        if (temp > 0.25f && self.State is HealthState state) {
+        if (temp > 0.22f && self.State is HealthState state) {
             Radiate(self, _ => self.mainBodyChunk.pos);
 
             burn += 1f / 40f / 6f;
