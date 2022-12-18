@@ -419,7 +419,7 @@ static class HeatHooks
             // Blow off steam occasionally and get stunned
             if (RngChance(0.06f)) {
 
-                crit.Stun((int)(8 * temp + 8 * Random.value));
+                crit.Stun((int)(10 * temp + 5 * Random.value + 5));
 
                 crit.Temperature() *= 0.9f;
 
@@ -440,6 +440,9 @@ static class HeatHooks
             crit.Violence(null, null, chunk, null, Creature.DamageType.Explosion, damage, stunBonus);
 
             if (crit.Template.smallCreature && temp > 0.2f) {
+                crit.Die();
+            }
+            if (temp >= 0.9f * crit.Template.instantDeathDamageLimit) {
                 crit.Die();
             }
         }

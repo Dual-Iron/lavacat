@@ -136,7 +136,7 @@ static class PlayerHooks
 
     private static void FoodMeter_Update(On.HUD.FoodMeter.orig_Update orig, HUD.FoodMeter foodMeter)
     {
-        if (foodMeter.hud.owner is Player plr && Plugin.Character.IsMe(plr.abstractPhysicalObject.world.game)) {
+        if (foodMeter.hud.owner is Player plr && plr.IsLavaCat()) {
             // Prevent food meter from popping up every two seconds
             foodMeter.lastCount = foodMeter.hud.owner.CurrentFood;
 
@@ -186,10 +186,21 @@ static class PlayerHooks
     static bool allowWaterDrips = true;
     private static void Player_Update(On.Player.orig_Update orig, Player player, bool eu)
     {
-        if (player?.room == null || !player.IsLavaCat()) {
+        if (player?.room == null) {
             orig(player, eu);
             return;
         }
+
+        if (!player.IsLavaCat()) {
+            if (player.Temperature() > 0.2f) {
+                player.Stun(15);
+            }
+
+            orig(player, eu);
+            return;
+        }
+
+        // TODO fireballs
 
         if (player.grasps.Any(g => g?.grabbed is BigSpider or Scavenger or DropBug or Cicada)) {
             if (player.room.game.TryGetSave(out LavaCatSaveState save) && !save.heldBurnable) {
