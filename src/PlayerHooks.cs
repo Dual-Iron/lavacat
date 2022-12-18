@@ -12,6 +12,10 @@ static class PlayerHooks
 {
     public static void Apply()
     {
+        // Let player heat objects up
+        On.Player.GrabUpdate += Player_GrabUpdate;
+        On.Player.ReleaseObject += Player_ReleaseObject;
+
         // Fix grabbing food like spiders
         On.Creature.Grab += Creature_Grab1;
         On.Player.Grabability += Player_Grabability;
@@ -42,8 +46,128 @@ static class PlayerHooks
         On.JellyFish.Update += JellyFish_Update;
         On.Creature.Grab += Creature_Grab;
         On.Player.MovementUpdate += Player_MovementUpdate;
-        On.Player.GrabUpdate += Player_GrabUpdate;
         On.Room.FloatWaterLevel += Room_FloatWaterLevel;
+    }
+
+    // Fix grab update
+    static bool grabUpdate;
+    private static void Player_GrabUpdate(On.Player.orig_GrabUpdate orig, Player self, bool eu)
+    {
+        bool jmp = self.input[0].jmp;
+
+        if (self.IsLavaCat()) {
+            self.input[0].jmp = true;
+            grabUpdate = true;
+        }
+
+        try {
+            // Fix moving underwater
+            movementUpdate = false;
+
+            orig(self, eu);
+        }
+        finally {
+            grabUpdate = false;
+            self.input[0].jmp = jmp;
+        }
+
+        GrabUpdate(self);
+    }
+
+    private static void Player_ReleaseObject(On.Player.orig_ReleaseObject orig, Player self, int grasp, bool eu)
+    {
+        if (grabUpdate && self.input[0].y > -1 && self.grasps[grasp]?.grabbed is PhysicalObject o && self.HeavyCarry(o)) {
+            return;
+        }
+        orig(self, grasp, eu);
+    }
+
+    private static void GrabUpdate(Player player)
+    {
+        if (player.IsLavaCat()) {
+            bool heat = player.input[0].x == 0 && player.input[0].y == 0 && !player.input[0].jmp && !player.input[0].thrw;
+            if (heat && player.input[0].pckp && player.Submersion <= 0) {
+                foreach (var grasp in player.grasps) {
+                    if (grasp?.grabbed is PhysicalObject o && CanHeat(player, o)) {
+                        HeatUpdate(player, o, grasp);
+                        return;
+                    }
+                }
+            }
+
+            player.HeatProgress() = 0;
+        }
+
+        static bool CanHeat(Player p, PhysicalObject o)
+        {
+            bool isFood = o.HeatProperties().IsEdible;
+            if (!isFood && o.Temperature() - p.Temperature() > -0.01f) {
+                return false;
+            }
+            return !o.slatedForDeletetion;
+        }
+
+        static void HeatUpdate(Player player, PhysicalObject o, Creature.Grasp grasp)
+        {
+            ref float progress = ref player.HeatProgress();
+
+            bool isFood = o.HeatProperties().IsEdible;
+            if (progress >= 1f && isFood) {
+                progress = 0;
+
+                player.SessionRecord?.AddEat(o);
+                o.Destroy();
+                o.BurstIntoFlame();
+
+                if (player.room?.game?.session is ArenaGameSession) {
+                    // Adjust how fast players heat up in arena mode (arena mode is very fast-paced)
+                    player.TemperatureChange() += o.FoodHeat() * Lerp(2.0f, 0.25f, player.Temperature());
+                }
+                else {
+                    // Diminishing returns from held food
+                    player.TemperatureChange() += o.FoodHeat() * Lerp(1.5f, 0.25f, player.Temperature());
+                }
+            }
+
+            if (progress > 1 / 4f) {
+                player.Blink(5);
+                player.BlindTimer() = 10;
+
+                player.WispySmoke(grasp.graspUsed).Emit(player.Hand(grasp).pos, new Vector2(0, 0.5f), LavaColor.rgb);
+
+                // Show food bar for food items
+                if (isFood) {
+                    if (o is Creature c) c.Die();
+
+                    if (player.abstractCreature.world.game.cameras[0].hud?.foodMeter != null)
+                        player.abstractCreature.world.game.cameras[0].hud.foodMeter.visibleCounter = 200;
+
+                    int particleCount = (int)Rng(0, progress * 10);
+                    for (int i = 0; i < particleCount; i++) {
+                        LavaFireSprite particle = new(o.firstChunk.pos + UnityEngine.Random.insideUnitCircle * o.firstChunk.rad * 0.5f, foreground: RngChance(0.50f));
+                        particle.vel.x *= 0.5f;
+                        particle.vel.y *= 1.5f;
+                        particle.lifeTime += (int)(progress * 40);
+                        player.room.AddObject(particle);
+                    }
+                }
+                // Heat up non-food items rapidly by holding PCKP
+                else {
+                    player.EqualizeHeat(o, progress * 0.25f);
+                }
+            }
+
+            if (CanHeat(player, o)) {
+                float progressTime = isFood
+                    ? (80 + 160 * o.TotalMass) / o.HeatProperties().EatSpeed
+                    : 80;
+                progress += 1 / progressTime;
+                progress = Clamp01(progress);
+            }
+            else {
+                progress = 0;
+            }
+        }
     }
 
     private static bool Creature_Grab1(On.Creature.orig_Grab orig, Creature self, PhysicalObject obj, int graspUsed, int chunkGrabbed, Creature.Grasp.Shareability shareability, float dominance, bool overrideEquallyDominant, bool pacifying)
@@ -330,23 +454,20 @@ static class PlayerHooks
         return orig(crit, obj, graspUsed, chunkGrabbed, shareability, dominance, overrideEquallyDominant, pacifying);
     }
 
+    // See GrabUpdate hook above
     private static bool movementUpdate = false;
     private static void Player_MovementUpdate(On.Player.orig_MovementUpdate orig, Player player, bool eu)
     {
-        movementUpdate = true;
+        if (player.IsLavaCat()) {
+            movementUpdate = true;
+        }
+
         try {
             orig(player, eu);
         }
         finally {
             movementUpdate = false;
         }
-    }
-
-    private static void Player_GrabUpdate(On.Player.orig_GrabUpdate orig, Player self, bool eu)
-    {
-        movementUpdate = false;
-
-        orig(self, eu);
     }
 
     private static float Room_FloatWaterLevel(On.Room.orig_FloatWaterLevel orig, Room room, float horizontalPos)

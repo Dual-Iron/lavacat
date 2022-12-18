@@ -26,22 +26,26 @@ sealed class LavaCatCharacter : SlugBaseCharacter
         return false;
     }
 
+    static Color RGB(int r, int g, int b) => new(r / 255f, g / 255f, b / 255f);
+
     public override Color? SlugcatColor(int slugcatCharacter, Color baseColor)
     {
-        HSLColor color = Extensions.LavaColor;
-
-        bool isStoryMode = slugcatCharacter == -1;
-        if (!isStoryMode) {
-            // Shift hue for different players
-            color.hue += 0.2f * slugcatCharacter;
-        }
-
-        return color.rgb;
+        return slugcatCharacter switch {
+            1 => RGB(255, 185, 80), // plate color .93, .65, .47
+            2 => RGB(255, 225, 135), // plate color .75, .17, .17
+            3 => RGB(255, 100, 85), // plate color .24, .24, .29
+            _ => Extensions.LavaColor.rgb,
+        };
     }
 
     public override Color? SlugcatEyeColor(int slugcatCharacter)
     {
-        return Color.white;
+        return slugcatCharacter switch {
+            1 => RGB(246, 150, 70),
+            2 => RGB(255, 255, 255),
+            3 => RGB(255, 234, 163),
+            _ => RGB(255, 238, 196),
+        };
     }
 
     public override void GetFoodMeter(out int maxFood, out int foodToSleep)

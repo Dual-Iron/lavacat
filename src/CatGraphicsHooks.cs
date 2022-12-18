@@ -180,7 +180,7 @@ static class CatGraphicsHooks
         }
 
         if (self.player.IsLavaCat()) {
-            self.ApplyPalette(sLeaser, rCam, rCam.currentPalette);
+            ApplyPalette(self, sLeaser);
         }
     }
 
@@ -220,7 +220,11 @@ static class CatGraphicsHooks
     private static void PlayerGraphics_ApplyPalette(On.PlayerGraphics.orig_ApplyPalette orig, PlayerGraphics self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, RoomPalette palette)
     {
         orig(self, sLeaser, rCam, palette);
+        ApplyPalette(self, sLeaser);
+    }
 
+    private static void ApplyPalette(PlayerGraphics self, RoomCamera.SpriteLeaser sLeaser)
+    {
         // Make tail creamy white :)
         if (self.player.IsLavaCat() && sLeaser.sprites[2] is TriangleMesh mesh) {
             mesh.verticeColors = new Color[mesh.vertices.Length];
