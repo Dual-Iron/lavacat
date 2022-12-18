@@ -100,7 +100,6 @@ public static class CustomAtlasLoader
             if (!string.IsNullOrEmpty(filterMode) && int.Parse(filterMode) > -1) imageData.filterMode = (FilterMode)int.Parse(filterMode);
             metaData.TryGetValue("wrapMode", out string wrapMode);
             if (!string.IsNullOrEmpty(wrapMode) && int.Parse(wrapMode) > -1) imageData.wrapMode = (TextureWrapMode)int.Parse(wrapMode);
-            // Todo -  the other 100 useless params
         }
 
         // make singleimage atlas

@@ -61,7 +61,7 @@ sealed class BurntPearlConvo : Conversation
                     case 0:
                         break;
                     case 1:
-                        events.Add(new TextEvent(this, 0, oracle.Translate("The scavengers must be jealous of you, finding all these"), 10));
+                        events.Add(new TextEvent(this, 0, oracle.Translate("The scavengers must be jealous of you, finding all these."), 10));
                         break;
                     case 2:
                         events.Add(new TextEvent(this, 0, oracle.Translate("Here we go again, little archeologist. Let's read your pearl."), 10));
@@ -85,6 +85,17 @@ static class OracleHooks
     {
         On.SLOracleBehaviorHasMark.WillingToInspectItem += SLOracleBehaviorHasMark_WillingToInspectItem;
         IL.SLOracleBehaviorHasMark.GrabObject += SLOracleBehaviorHasMark_GrabObject;
+
+        On.SSOracleBehavior.PebblesConversation.AddEvents += PebblesConversation_AddEvents;
+    }
+
+    private static void PebblesConversation_AddEvents(On.SSOracleBehavior.PebblesConversation.orig_AddEvents orig, SSOracleBehavior.PebblesConversation self)
+    {
+        if (self.owner.player.IsLavaCat()) {
+            return;
+        }
+
+        orig(self);
     }
 
     private static bool SLOracleBehaviorHasMark_WillingToInspectItem(On.SLOracleBehaviorHasMark.orig_WillingToInspectItem orig, SLOracleBehaviorHasMark self, PhysicalObject item)

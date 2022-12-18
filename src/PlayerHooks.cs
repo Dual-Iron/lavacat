@@ -1,4 +1,6 @@
-﻿using System;
+﻿using SlugBase;
+using System;
+using System.Linq;
 using UnityEngine;
 using static LavaCat.Extensions;
 using static SlugcatStats;
@@ -187,6 +189,16 @@ static class PlayerHooks
         if (player?.room == null || !player.IsLavaCat()) {
             orig(player, eu);
             return;
+        }
+
+        if (player.grasps.Any(g => g?.grabbed is BigSpider or Scavenger or DropBug or Cicada)) {
+            if (player.room.game.TryGetSave(out LavaCatSaveState save) && !save.heldBurnable) {
+                save.heldBurnable = true;
+
+                player.room.game.cameras[0].hud.textPrompt.AddMessage("Hold PICK UP / EAT to rapidly heat grasped objects", 0, 320, false, false);
+                player.room.game.cameras[0].hud.textPrompt.AddMessage("Some prey will ignite if hot enough", 20, 320, false, false);
+                player.room.game.cameras[0].hud.textPrompt.AddMessage("Absorb the flames for sustenance", 20, 320, false, false);
+            }
         }
 
         allowWaterDrips = false;

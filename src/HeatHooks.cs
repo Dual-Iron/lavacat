@@ -276,7 +276,7 @@ static class HeatHooks
         if (!heldByLavaCat) {
             self.Temperature() -= 0.01f * self.Temperature() * self.HeatProperties().Conductivity;
 
-            if (self.Temperature() < 0.000001f) {
+            if (self.Temperature() < 0.00001f) {
                 self.Temperature() = 0f;
             }
         }

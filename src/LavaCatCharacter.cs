@@ -12,7 +12,9 @@ sealed class LavaCatCharacter : SlugBaseCharacter
     }
 
     public override string DisplayName => "The Melted";
-    public override string Description => "soup";
+    public override string Description => 
+        "With stone skin and a fiery heart, you must view the environment from a<LINE>" +
+        "different lens to survive. The world was not ready for anomalies like you.";
 
     public override string StartRoom => "SH_S02";
     public override bool CanSkipTempleGuards => false;
@@ -67,8 +69,19 @@ sealed class LavaCatCharacter : SlugBaseCharacter
 sealed class LavaCatSaveState : CustomSaveState
 {
     public int burntPearls;
+    public bool heldBurnable;
 
     public LavaCatSaveState(PlayerProgression progression) : base(progression, Plugin.Character) { }
+
+    public override void SavePermanent(Dictionary<string, string> data, bool asDeath, bool asQuit)
+    {
+        data["heldBurnable"] = heldBurnable ? "Y" : "N";
+    }
+
+    public override void LoadPermanent(Dictionary<string, string> data)
+    {
+        heldBurnable = data.TryGetValue("heldBurnable", out string s) && s == "Y";
+    }
 
     public override void Save(Dictionary<string, string> data)
     {
