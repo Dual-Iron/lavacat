@@ -11,10 +11,10 @@ sealed class LavaCatCharacter : SlugBaseCharacter
     {
     }
 
-    public override string DisplayName => "The Melted";
+    public override string DisplayName => "The Arson";
     public override string Description => 
-        "With stone skin and a fiery heart, you must view the environment from a<LINE>" +
-        "different lens to survive. The world was not ready for anomalies like you.";
+        "With stone flesh and a fiery core, you must view the environment from a<LINE>" +
+        "different lens to survive. The world was not prepared for anomalies like you.";
 
     public override string StartRoom => "SH_S02";
     public override bool CanSkipTempleGuards => false;
