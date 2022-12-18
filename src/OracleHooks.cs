@@ -92,7 +92,8 @@ static class OracleHooks
     private static void PebblesConversation_AddEvents(On.SSOracleBehavior.PebblesConversation.orig_AddEvents orig, SSOracleBehavior.PebblesConversation self)
     {
         if (self.owner.player.IsLavaCat()) {
-            return;
+            // TODO 5p
+            // return;
         }
 
         orig(self);

@@ -461,6 +461,9 @@ static class HeatHooks
 
     private static float TrackedPrey_Attractiveness(On.PreyTracker.TrackedPrey.orig_Attractiveness orig, PreyTracker.TrackedPrey tracked)
     {
+        if (tracked.critRep.representedCreature.Burn() > 0) {
+            return 0;
+        }
         if (tracked.owner.AI.creature.AvoidsHeat()) {
             float temp = tracked.critRep.representedCreature.Temperature();
 
