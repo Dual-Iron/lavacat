@@ -45,6 +45,8 @@ static class ObjectHooks
 
     public static void Apply()
     {
+        // Make DLLs explode
+        // Make pole plants and kelp monsters burn
         On.Fly.Update += Fly_Update;
 
         On.Spear.HitSomething += Spear_HitSomething;

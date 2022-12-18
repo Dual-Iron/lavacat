@@ -80,7 +80,6 @@ sealed class BurntPearlConvo : Conversation
 
 static class OracleHooks
 {
-    // TODO custom 5p and lttm dialogue
     public static void Apply()
     {
         On.SLOracleBehaviorHasMark.WillingToInspectItem += SLOracleBehaviorHasMark_WillingToInspectItem;

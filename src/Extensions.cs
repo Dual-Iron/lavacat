@@ -102,6 +102,7 @@ static class Extensions
     public static void EqualizeHeat(this PhysicalObject self, PhysicalObject other, float speed = 0.05f, bool losePlayerHeat = false)
     {
         if (speed <= 0 || self == other) return;
+        if (self is Player one && one.IsLavaCat() && other is Player two && two.IsLavaCat()) return;
 
         // Lighter objects should lose heat faster than heavier objects.
         float massRatio = other.TotalMass / (other.TotalMass + self.TotalMass);
