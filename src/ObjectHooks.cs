@@ -45,7 +45,8 @@ static class ObjectHooks
 
     public static void Apply()
     {
-        // TODO Make DLLs explode, then pole plants and kelp monsters burn
+        // TODO Make DLLs and snails explode; make pole plants, kelp monsters, noodleflies, and centipedes burn
+        // TODO Make electricity completely ineffective and centipedes fear lavacat
         On.Fly.Update += Fly_Update;
 
         On.Spear.HitSomething += Spear_HitSomething;
