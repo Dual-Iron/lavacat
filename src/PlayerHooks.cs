@@ -180,8 +180,11 @@ static class PlayerHooks
 
     private static int Player_Grabability(On.Player.orig_Grabability orig, Player self, PhysicalObject obj)
     {
-        if (self.IsLavaCat() && obj is BigSpider or Scavenger or DropBug) {
-            return (int)Player.ObjectGrabability.Drag;
+        if (self.IsLavaCat()) {
+            if (obj is BigSpider or Scavenger or DropBug)
+                return (int)Player.ObjectGrabability.Drag;
+            if (obj is JetFish)
+                return (int)Player.ObjectGrabability.BigOneHand;
         }
         return orig(self, obj);
     }
@@ -372,6 +375,10 @@ static class PlayerHooks
         player.waterFriction = Lerp(0.96f, 0.8f, temperature);
         player.buoyancy = Lerp(0.3f, 1.1f, temperature);
 
+        if (player.buoyancy < 0.95f && player.grasps.Any(g => g?.grabbed is JetFish)) {
+            player.buoyancy = 0.95f;
+        }
+
         // self cat doesn't breathe.
         player.airInLungs = 1f;
         player.aerobicLevel = 0f;
@@ -388,7 +395,7 @@ static class PlayerHooks
 
             float malnourishedMultiplier = player.Malnourished ? 0.9f : 1f;
 
-            stats.bodyWeightFac = Lerp(1.3f, 1.5f, temperature) * malnourishedMultiplier;
+            stats.bodyWeightFac = 1.6f * malnourishedMultiplier;
             stats.generalVisibilityBonus = Lerp(0f, 0.2f, temperature);
             stats.corridorClimbSpeedFac = Lerp(0.9f, 1.2f, temperature) * malnourishedMultiplier;
             stats.poleClimbSpeedFac = Lerp(0.9f, 1.2f, temperature) * malnourishedMultiplier;

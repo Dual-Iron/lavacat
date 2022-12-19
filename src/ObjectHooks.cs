@@ -45,8 +45,11 @@ static class ObjectHooks
 
     public static void Apply()
     {
+        On.JetFish.Swim += JetFish_Swim;
+
         // TODO Make DLLs and snails explode; make pole plants, kelp monsters, noodleflies, and centipedes burn
         // TODO Make electricity completely ineffective and centipedes fear lavacat
+        // TODO fire vultures fuel it
         On.Fly.Update += Fly_Update;
 
         On.Spear.HitSomething += Spear_HitSomething;
@@ -98,6 +101,17 @@ static class ObjectHooks
 
         On.Cicada.Update += Cicada_Update;
         On.CicadaGraphics.DrawSprites += CicadaGraphics_DrawSprites;
+    }
+
+    private static void JetFish_Swim(On.JetFish.orig_Swim orig, JetFish self, float speedFac)
+    {
+        foreach (var g in self.grabbedBy) {
+            if (g?.grabber is Player p && p.IsLavaCat()) {
+                speedFac += 0.6f;
+                break;
+            }
+        }
+        orig(self, speedFac);
     }
 
     private static void Fly_Update(On.Fly.orig_Update orig, Fly fly, bool eu)

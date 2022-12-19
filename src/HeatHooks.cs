@@ -275,9 +275,8 @@ static class HeatHooks
 
         orig(crit, eu);
 
-        int minMeat = (int)Mathf.Lerp(crit.Template.meatPoints, 0, crit.Burn());
-        if (crit.State.meatLeft > minMeat) {
-            crit.State.meatLeft = minMeat;
+        if (crit.Burn() > 0) {
+            crit.State.meatLeft = 0;
         }
 
         float temp = crit.Temperature();
