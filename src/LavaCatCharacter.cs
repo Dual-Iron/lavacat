@@ -11,7 +11,7 @@ sealed class LavaCatCharacter : SlugBaseCharacter
     {
     }
 
-    public override string DisplayName => "The Arson";
+    public override string DisplayName => "The Arsonist";
     public override string Description => 
         "With stone flesh and a fiery core, you must view the environment from a<LINE>" +
         "different lens to survive. The world was not ready for anomalies like you.";

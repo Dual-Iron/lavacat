@@ -164,7 +164,7 @@ static class ObjectHooks
             temp *= 0.9f;
         }
 
-        if (spear.room != null && FireParticleChance(temp)) {
+        if (spear.room != null && spear.mode is Weapon.Mode.Thrown && FireParticleChance(temp)) {
             LavaFireSprite sprite = new(spear.firstChunk.pos + Random.insideUnitCircle * 2 + spear.rotation * Rng(-halfLength, halfLength));
             sprite.life *= 0.7f;
             spear.room.AddObject(sprite);

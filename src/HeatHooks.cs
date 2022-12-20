@@ -359,7 +359,7 @@ static class HeatHooks
 
     private static int ScavengerAI_CollectScore_PhysicalObject_bool(On.ScavengerAI.orig_CollectScore_PhysicalObject_bool orig, ScavengerAI self, PhysicalObject obj, bool weaponFiltered)
     {
-        if (obj.Temperature() > 0.1f) {
+        if (obj != null && obj.Temperature() > 0.1f) {
             return self.creature.AvoidsHeat() ? 0 : orig(self, obj, weaponFiltered);
         }
         return orig(self, obj, weaponFiltered);
