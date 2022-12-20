@@ -116,10 +116,7 @@ static class HeatHooks
         bool connected = self.abstractPhysicalObject.stuckObjects.Any(s => s.A == otherObject.abstractPhysicalObject || s.B == otherObject.abstractPhysicalObject);
         if (!connected) {
             // If being touched by a hot creature, blame it for our death
-            if (!(self is Player p && p.IsLavaCat()) &&
-                self is Creature crit && otherObject is Creature otherCrit &&
-                otherCrit.Temperature() > crit.Temperature() && otherCrit.Temperature() > 0.1f
-                ) {
+            if (self is Creature crit && !crit.ImmuneToHeat() && otherObject is Creature otherCrit && otherCrit.Temperature() > crit.Temperature() && otherCrit.Temperature() > 0.1f) {
                 crit.SetKillTag(otherCrit.abstractCreature);
 
                 float diff = otherCrit.Temperature() - crit.Temperature();
@@ -141,22 +138,19 @@ static class HeatHooks
     {
         orig(self, eu);
 
-        bool heldByLavaCat = self is Player p && !p.dead && p.IsLavaCat();
-
         foreach (var stick in self.abstractPhysicalObject.stuckObjects) {
             AbstractPhysicalObject notMe = stick.A == self.abstractPhysicalObject ? stick.B : stick.A;
 
             if (notMe.realizedObject is PhysicalObject other) {
                 // Player doesn't lose heat if just holding an object
-                bool retainHeat = stick is AbstractPhysicalObject.CreatureGripStick or Player.AbstractOnBackStick && stick.A.realizedObject is Player p3 && !p3.dead && p3.IsLavaCat();
-                heldByLavaCat |= retainHeat;
+                bool retainHeat = stick.RetainsHeat();
 
-                self.EqualizeHeat(other, losePlayerHeat: !retainHeat);
+                self.EqualizeHeat(other, drainHeat: !retainHeat);
             }
         }
 
         // Lose heat to diffusion
-        if (!heldByLavaCat) {
+        if (!self.RetainsHeat()) {
             self.Temperature() -= 0.01f * self.Temperature() * self.HeatProperties().Conductivity;
 
             if (self.Temperature() < 0.00001f) {
@@ -300,10 +294,10 @@ static class HeatHooks
 
             // Blow off steam occasionally and get stunned
             if (RngChance(0.06f)) {
+                if (!crit.RetainsHeat())
+                    crit.Temperature() *= 0.9f;
 
                 crit.Stun((int)(10 * temp + 5 * Random.value + 5));
-
-                crit.Temperature() *= 0.9f;
 
                 Fx(crit.RandomChunk, temp);
             }
@@ -321,10 +315,10 @@ static class HeatHooks
 
             crit.Violence(null, null, chunk, null, Creature.DamageType.Explosion, damage, stunBonus);
 
-            if (crit.Template.smallCreature && temp > 0.2f) {
+            if (temp > 0.2f && crit.Template.smallCreature) {
                 crit.Die();
             }
-            if (temp >= 0.9f * crit.Template.instantDeathDamageLimit) {
+            if (temp > 0.9f * crit.Template.instantDeathDamageLimit) {
                 crit.Die();
             }
         }

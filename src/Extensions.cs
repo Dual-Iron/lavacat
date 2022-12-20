@@ -16,6 +16,42 @@ static class Extensions
     // RGB (255, 180, 60)
     public static readonly HSLColor LavaColor = new(0.10f, 1.00f, 0.60f);
 
+    // -- API --
+
+    public static bool ImmuneToHeat(this Creature c)
+    {
+        // default: false
+        return c is Player p && p.IsLavaCat();
+    }
+
+    public static bool GeneratesHeat(this PhysicalObject o)
+    {
+        // default: false
+        return o is Player p && !p.dead && p.IsLavaCat();
+    }
+
+    public static bool RetainsHeat(this AbstractPhysicalObject.AbstractObjectStick stick)
+    {
+        // default:
+        return stick is AbstractPhysicalObject.CreatureGripStick or Player.AbstractOnBackStick && stick.A.realizedObject.GeneratesHeat();
+    }
+    
+    public static bool RetainsHeat(this PhysicalObject o)
+    {
+        // util
+        if (o.GeneratesHeat()) {
+            return true;
+        }
+
+        foreach (var stick in o.abstractPhysicalObject.stuckObjects) {
+            if (stick.RetainsHeat()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // -- Lava cat --
 
     public static bool IsLavaCat(this Player player) => Plugin.Character.IsMe(player);
@@ -81,7 +117,7 @@ static class Extensions
 
         return self switch {
             IPlayerEdible or WaterNut or FlyLure or BubbleGrass => Edible(0.2f, 1f),
-            Spider => new HeatProperties { Conductivity = 0.15f, EatSpeed = 2f, DryTemp = 0 },
+            Spider => new HeatProperties { Conductivity = 0.15f, DryTemp = 0 },
 
             Spear => Inedible(0.50f),
             Rock => Inedible(0.05f),
@@ -99,19 +135,17 @@ static class Extensions
         };
     }
 
-    public static void EqualizeHeat(this PhysicalObject self, PhysicalObject other, float speed = 0.05f, bool losePlayerHeat = false)
+    public static void EqualizeHeat(this PhysicalObject self, PhysicalObject other, float speed = 0.05f, bool drainHeat = false)
     {
         if (speed <= 0 || self == other) return;
-        if (self is Player one && one.IsLavaCat() && other is Player two && two.IsLavaCat()) return;
 
         // Lighter objects should lose heat faster than heavier objects.
         float massRatio = other.TotalMass / (other.TotalMass + self.TotalMass);
         float conductivity = HeatProperties(self).Conductivity;
         float heatFlow = other.Temperature() - self.Temperature();
 
-        // LavaCat can't be cooled down by other objects
-        bool canSelfCool = losePlayerHeat || !(self is Player p && p.IsLavaCat());
-        bool canOtherCool = losePlayerHeat || !(other is Player p2 && p2.IsLavaCat());
+        bool canSelfCool = !self.GeneratesHeat() || drainHeat;
+        bool canOtherCool = !other.GeneratesHeat() || drainHeat;
 
         if (canSelfCool || heatFlow > 0)
             self.Temperature() += heatFlow * conductivity * speed * massRatio;
