@@ -574,7 +574,7 @@ static class ObjectHooks
             }
 
             // If dead, this cob should burn extremely briefly
-            burn += cob.AbstractCob.dead ? 1 / 80f : 1 / 400f;
+            burn += cob.AbstractCob.dead ? 1 / 60f : 1 / 400f;
 
             if (burn > 1f) {
                 burn = 1f;
@@ -845,7 +845,7 @@ static class ObjectHooks
         if (temp > 0.35f && self.State is HealthState state) {
             Radiate(self, _ => self.mainBodyChunk.pos);
 
-            burn += 1f / 40f / 12f;
+            burn += 1f / 40f / 8f;
 
             float heat = 1 - (2 * burn - 1).Pow(2);
 
