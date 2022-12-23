@@ -139,22 +139,24 @@ static class CatGraphicsHooks
     {
         orig(self, sLeaser, rCam);
 
-        self.PlateSprites() = sLeaser.sprites.Length;
+        if (self.player.IsLavaCat()) {
+            self.PlateSprites() = sLeaser.sprites.Length;
 
-        System.Array.Resize(ref sLeaser.sprites, sLeaser.sprites.Length + 3);
+            System.Array.Resize(ref sLeaser.sprites, sLeaser.sprites.Length + 3);
 
-        self.BodyPlate(sLeaser) = new FSprite("PlatesBodyA");
-        self.HipsPlate(sLeaser) = new FSprite("PlatesHipsA");
-        self.LegPlate(sLeaser) = new FSprite("PlatesLegsA0");
+            self.BodyPlate(sLeaser) = new FSprite("PlatesBodyA");
+            self.HipsPlate(sLeaser) = new FSprite("PlatesHipsA");
+            self.LegPlate(sLeaser) = new FSprite("PlatesLegsA0");
 
-        self.AddToContainer(sLeaser, rCam, null);
+            self.AddToContainer(sLeaser, rCam, null);
+        }
     }
 
     private static void PlayerGraphics_AddToContainer(On.PlayerGraphics.orig_AddToContainer orig, PlayerGraphics self, RoomCamera.SpriteLeaser sLeaser, RoomCamera rCam, FContainer newContatiner)
     {
         orig(self, sLeaser, rCam, newContatiner);
 
-        if (sLeaser.sprites.Length > 12) {
+        if (self.player.IsLavaCat() && sLeaser.sprites.Length > 12) {
             sLeaser.sprites[6].container.AddChild(self.BodyPlate(sLeaser));
             sLeaser.sprites[4].container.AddChild(self.LegPlate(sLeaser));
             sLeaser.sprites[1].container.AddChild(self.HipsPlate(sLeaser));
@@ -169,17 +171,18 @@ static class CatGraphicsHooks
     {
         orig(self, sLeaser, rCam, timeStacker, camPos);
 
-        if (self.player.IsLavaCat() && self.player.playerState.playerNumber <= 0) {
-            AlignSprite(self.BodyPlate(sLeaser), sLeaser.sprites[0]);
-            AlignSprite(self.HipsPlate(sLeaser), sLeaser.sprites[1]);
-            AlignSprite(self.LegPlate(sLeaser), sLeaser.sprites[4]);
-
-            RotateRibcage(self, sLeaser, timeStacker);
-
-            self.BodyPlate(sLeaser).anchorY = 0.84f;
-        }
-
         if (self.player.IsLavaCat()) {
+            // Only first player gets ribcage
+            if (self.player.playerState.playerNumber <= 0) {
+                AlignSprite(self.BodyPlate(sLeaser), sLeaser.sprites[0]);
+                AlignSprite(self.HipsPlate(sLeaser), sLeaser.sprites[1]);
+                AlignSprite(self.LegPlate(sLeaser), sLeaser.sprites[4]);
+
+                RotateRibcage(self, sLeaser, timeStacker);
+
+                self.BodyPlate(sLeaser).anchorY = 0.84f;
+            }
+            // Set colors
             ApplyPalette(self, sLeaser);
         }
     }
@@ -225,22 +228,23 @@ static class CatGraphicsHooks
 
     private static void ApplyPalette(PlayerGraphics self, RoomCamera.SpriteLeaser sLeaser)
     {
-        // Make tail creamy white :)
         if (self.player.IsLavaCat() && sLeaser.sprites[2] is TriangleMesh mesh) {
             mesh.verticeColors = new Color[mesh.vertices.Length];
             mesh.customColor = true;
 
+            // Make tail creamy white :)
             for (int i = 0; i < mesh.verticeColors.Length; i++) {
                 mesh.verticeColors[i] = Color.Lerp(self.player.SkinColor(), Color.white * (self.player.Temperature() + 0.25f), i / (float)mesh.verticeColors.Length);
             }
 
+            // Make skin lava-colored
             for (int i = 0; i < 9; i++) {
                 if (i != 2) {
                     sLeaser.sprites[i].color = self.player.SkinColor();
                 }
             }
 
-            // Goes from a dark rocky color to a slightly redder dark orange
+            // Make plates change color too. Goes from a dark rocky color to a slightly redder dark orange
             HSLColor hsl = LavaColor;
             hsl.hue *= 0.5f;
             hsl.saturation *= 0.8f;
